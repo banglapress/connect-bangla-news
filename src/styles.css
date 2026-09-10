@@ -19,6 +19,8 @@
  */
 
 @theme inline {
+  --font-sans: "Hind Siliguri", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Tiro Bangla", Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -140,5 +142,26 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility section-rule {
+  border-bottom: 2px solid var(--color-foreground);
+}
+
+@utility article-body {
+  & p {
+    margin-bottom: 1.15rem;
+    line-height: 1.95;
+    font-size: 1.0625rem;
   }
 }
