@@ -10,13 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminNewRouteImport } from './routes/_authenticated/admin.new'
+import { Route as AuthenticatedAdminIdEditRouteImport } from './routes/_authenticated/admin.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -34,36 +48,93 @@ const NewsSlugRoute = NewsSlugRouteImport.update({
   path: '/news/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminNewRoute = AuthenticatedAdminNewRouteImport.update({
+  id: '/admin/new',
+  path: '/admin/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminIdEditRoute =
+  AuthenticatedAdminIdEditRouteImport.update({
+    id: '/admin/$id/edit',
+    path: '/admin/$id/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/category/$slug': typeof CategorySlugRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/admin/new': typeof AuthenticatedAdminNewRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/$id/edit': typeof AuthenticatedAdminIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/category/$slug': typeof CategorySlugRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/admin/new': typeof AuthenticatedAdminNewRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/$id/edit': typeof AuthenticatedAdminIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/category/$slug': typeof CategorySlugRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/_authenticated/admin/new': typeof AuthenticatedAdminNewRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/$id/edit': typeof AuthenticatedAdminIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/search' | '/category/$slug' | '/news/$slug'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/search'
+    | '/category/$slug'
+    | '/news/$slug'
+    | '/admin/new'
+    | '/admin/'
+    | '/admin/$id/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/search' | '/category/$slug' | '/news/$slug'
-  id: '__root__' | '/' | '/search' | '/category/$slug' | '/news/$slug'
+  to:
+    | '/'
+    | '/auth'
+    | '/search'
+    | '/category/$slug'
+    | '/news/$slug'
+    | '/admin/new'
+    | '/admin'
+    | '/admin/$id/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/search'
+    | '/category/$slug'
+    | '/news/$slug'
+    | '/_authenticated/admin/new'
+    | '/_authenticated/admin/'
+    | '/_authenticated/admin/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   SearchRoute: typeof SearchRoute
   CategorySlugRoute: typeof CategorySlugRoute
   NewsSlugRoute: typeof NewsSlugRoute
@@ -76,6 +147,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -99,11 +184,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/new': {
+      id: '/_authenticated/admin/new'
+      path: '/admin/new'
+      fullPath: '/admin/new'
+      preLoaderRoute: typeof AuthenticatedAdminNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/$id/edit': {
+      id: '/_authenticated/admin/$id/edit'
+      path: '/admin/$id/edit'
+      fullPath: '/admin/$id/edit'
+      preLoaderRoute: typeof AuthenticatedAdminIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminNewRoute: typeof AuthenticatedAdminNewRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminIdEditRoute: typeof AuthenticatedAdminIdEditRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminNewRoute: AuthenticatedAdminNewRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminIdEditRoute: AuthenticatedAdminIdEditRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   SearchRoute: SearchRoute,
   CategorySlugRoute: CategorySlugRoute,
   NewsSlugRoute: NewsSlugRoute,
