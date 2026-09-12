@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { createArticle, updateArticle } from "@/lib/admin.functions";
 import { CATEGORIES } from "@/lib/categories";
 import { slugifyBangla } from "@/lib/bangla";
+import { uploadNewsImage } from "@/lib/upload-image";
 
 export type EditorValues = {
   id?: string;
@@ -56,16 +56,8 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
   async function handleUpload(file: File) {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("news-images").upload(path, file, {
-        cacheControl: "31536000",
-        upsert: false,
-      });
-      if (error) throw error;
-      const { data } = supabase.storage.from("news-images").getPublicUrl(path);
-      if (!data.publicUrl) throw new Error("ছবির ঠিকানা তৈরি হয়নি");
-      set("image_url", data.publicUrl);
+      const url = await uploadNewsImage(file);
+      set("image_url", url);
       toast.success("ছবি যুক্ত হয়েছে");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "ছবি আপলোড করা যায়নি");
@@ -117,149 +109,65 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     <div className="space-y-5">
       <div>
         <label className="mb-1 block text-sm font-medium">শিরোনাম</label>
-        <input
-          className={inputClass}
-          value={values.title}
-          onChange={(e) => set("title", e.target.value)}
-          placeholder="খবরের শিরোনাম"
-        />
+        <input className={inputClass} value={values.title} onChange={(e) => set("title", e.target.value)} placeholder="খবরের শিরোনাম" />
       </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">বিভাগ</label>
-          <select
-            className={inputClass}
-            value={values.category_slug}
-            onChange={(e) => set("category_slug", e.target.value)}
-          >
+          <select className={inputClass} value={values.category_slug} onChange={(e) => set("category_slug", e.target.value)}>
             {CATEGORIES.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.name}
-              </option>
+              <option key={c.slug} value={c.slug}>{c.name}</option>
             ))}
           </select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">লেখকের নাম</label>
-          <input
-            className={inputClass}
-            value={values.author_name}
-            onChange={(e) => set("author_name", e.target.value)}
-          />
+          <input className={inputClass} value={values.author_name} onChange={(e) => set("author_name", e.target.value)} />
         </div>
       </div>
-
       <div>
         <label className="mb-1 block text-sm font-medium">সংক্ষিপ্তসার</label>
-        <textarea
-          className={`${inputClass} min-h-20`}
-          value={values.excerpt}
-          onChange={(e) => set("excerpt", e.target.value)}
-          placeholder="দুই-এক বাক্যে খবরের সারাংশ"
-        />
+        <textarea className={`${inputClass} min-h-20`} value={values.excerpt} onChange={(e) => set("excerpt", e.target.value)} placeholder="দুই-এক বাক্যে খবরের সারাংশ" />
       </div>
-
       <div>
         <label className="mb-1 block text-sm font-medium">মূল লেখা</label>
-        <textarea
-          className={`${inputClass} min-h-72 leading-relaxed`}
-          value={values.body}
-          onChange={(e) => set("body", e.target.value)}
-          placeholder="অনুচ্ছেদ আলাদা করতে একটি ফাঁকা লাইন দিন"
-        />
+        <textarea className={`${inputClass} min-h-72 leading-relaxed`} value={values.body} onChange={(e) => set("body", e.target.value)} placeholder="অনুচ্ছেদ আলাদা করতে একটি ফাঁকা লাইন দিন" />
       </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">ট্যাগ (কমা দিয়ে আলাদা)</label>
-          <input
-            className={inputClass}
-            value={values.tags}
-            onChange={(e) => set("tags", e.target.value)}
-            placeholder="ঢাকা, পরিবহন"
-          />
+          <input className={inputClass} value={values.tags} onChange={(e) => set("tags", e.target.value)} placeholder="ঢাকা, পরিবহন" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">ঠিকানা-নাম (খালি রাখলে নিজে তৈরি হবে)</label>
-          <input
-            className={inputClass}
-            value={values.slug}
-            onChange={(e) => set("slug", e.target.value)}
-            placeholder="notun-khobor"
-          />
+          <input className={inputClass} value={values.slug} onChange={(e) => set("slug", e.target.value)} placeholder="notun-khobor" />
         </div>
       </div>
-
       <div className="border border-border p-4">
         <label className="mb-2 block text-sm font-medium">খবরের ছবি</label>
         {values.image_url ? (
           <div className="mb-3">
             <img src={values.image_url} alt="" className="max-h-56 w-full object-cover" />
-            <button
-              type="button"
-              className="mt-2 text-sm text-primary hover:underline"
-              onClick={() => set("image_url", null)}
-            >
-              ছবি সরান
-            </button>
+            <button type="button" className="mt-2 text-sm text-primary hover:underline" onClick={() => set("image_url", null)}>ছবি সরান</button>
           </div>
         ) : null}
-        <input
-          type="file"
-          accept="image/*"
-          disabled={uploading}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleUpload(file);
-          }}
-          className="text-sm"
-        />
+        <input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleUpload(file); }} className="text-sm" />
         {uploading && <p className="mt-2 text-sm text-muted-foreground">আপলোড হচ্ছে…</p>}
-        <input
-          className={`${inputClass} mt-3`}
-          value={values.image_caption ?? ""}
-          onChange={(e) => set("image_caption", e.target.value)}
-          placeholder="ছবির ক্যাপশন"
-        />
+        <input className={`${inputClass} mt-3`} value={values.image_caption ?? ""} onChange={(e) => set("image_caption", e.target.value)} placeholder="ছবির ক্যাপশন" />
       </div>
-
       <div className="flex flex-wrap gap-6 text-sm">
         <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={values.is_lead}
-            onChange={(e) => set("is_lead", e.target.checked)}
-          />
+          <input type="checkbox" checked={values.is_lead} onChange={(e) => set("is_lead", e.target.checked)} />
           প্রথম পাতার লিড খবর
         </label>
         <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={values.is_featured}
-            onChange={(e) => set("is_featured", e.target.checked)}
-          />
+          <input type="checkbox" checked={values.is_featured} onChange={(e) => set("is_featured", e.target.checked)} />
           শীর্ষ খবর
         </label>
       </div>
-
       <div className="flex flex-wrap gap-3 border-t border-border pt-4">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => save("published")}
-          className="bg-primary px-5 py-2 font-medium text-primary-foreground disabled:opacity-60"
-        >
-          প্রকাশ করুন
-        </button>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => save("draft")}
-          className="border border-border px-5 py-2 font-medium hover:bg-secondary disabled:opacity-60"
-        >
-          ড্রাফট সংরক্ষণ
-        </button>
+        <button type="button" disabled={saving} onClick={() => save("published")} className="bg-primary px-5 py-2 font-medium text-primary-foreground disabled:opacity-60">প্রকাশ করুন</button>
+        <button type="button" disabled={saving} onClick={() => save("draft")} className="border border-border px-5 py-2 font-medium hover:bg-secondary disabled:opacity-60">ড্রাফট সংরক্ষণ</button>
       </div>
     </div>
   );
