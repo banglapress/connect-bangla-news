@@ -55,12 +55,42 @@ function AdminDashboard() {
     return <p className="mx-auto max-w-5xl px-4 py-16 text-muted-foreground">অপেক্ষা করুন…</p>;
   }
 
+  if (access.isError) {
+    const message = access.error instanceof Error ? access.error.message : "অজানা ত্রুটি";
+    const needsLogin = /unauthorized|authorization|token/i.test(message);
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <h1 className="font-serif text-2xl font-bold">অনুমতি যাচাই করা যায়নি</h1>
+        <p className="mt-3 text-muted-foreground">
+          {needsLogin
+            ? "এই ডোমেইনে লগইন তথ্য পাওয়া যায়নি। কাস্টম ডোমেইনে আলাদা করে আবার প্রবেশ করুন।"
+            : "সার্ভার থেকে ভূমিকা পড়া যায়নি। নিচে আসল কারণ দেওয়া আছে।"}
+        </p>
+        <p className="mt-3 break-words text-sm text-destructive">{message}</p>
+        <div className="mt-6 flex justify-center gap-3">
+          <button
+            onClick={() => void access.refetch()}
+            className="bg-primary px-4 py-2 text-sm text-primary-foreground"
+          >
+            আবার চেষ্টা করুন
+          </button>
+          <button onClick={signOut} className="border border-border px-4 py-2 text-sm">
+            সাইন আউট
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!access.data?.isStaff) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <h1 className="font-serif text-2xl font-bold">আপনার লেখার অনুমতি নেই</h1>
         <p className="mt-3 text-muted-foreground">
           খবর লিখতে হলে অ্যাডমিনকে বলুন আপনাকে সম্পাদক হিসেবে যুক্ত করতে।
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          অন্য ডোমেইনে অ্যাডমিন থাকলেও এই সাইটে অন্য ইমেইল দিয়ে প্রবেশ করলে ভূমিকা থাকবে না।
         </p>
         <button onClick={signOut} className="mt-6 text-primary hover:underline">
           সাইন আউট
@@ -76,6 +106,11 @@ function AdminDashboard() {
       <div className="section-rule flex flex-wrap items-center justify-between gap-3 pb-2">
         <h1 className="font-serif text-2xl font-bold">সম্পাদকীয় প্যানেল</h1>
         <div className="flex gap-3">
+          {access.data.roles.includes("admin") && (
+            <Link to="/admin/users" className="border border-border px-4 py-2 text-sm hover:bg-secondary">
+              ব্যবহারকারী
+            </Link>
+          )}
           <Link to="/admin/new" className="bg-primary px-4 py-2 text-sm text-primary-foreground">
             নতুন খবর
           </Link>

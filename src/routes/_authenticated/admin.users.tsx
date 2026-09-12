@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getMyAccess } from "@/lib/admin.functions";
-import { inviteUser, listUsers, setUserRole } from "@/lib/users.functions";
+import { createUser, inviteUser, listUsers, setUserRole } from "@/lib/users.functions";
 import { formatBanglaDate } from "@/lib/bangla";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
@@ -26,10 +26,13 @@ function UsersPage() {
   const fetchUsers = useServerFn(listUsers);
   const changeRole = useServerFn(setUserRole);
   const invite = useServerFn(inviteUser);
+  const addUser = useServerFn(createUser);
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "editor" | "none">("editor");
+  const [mode, setMode] = useState<"create" | "invite">("create");
   const [sending, setSending] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -55,24 +58,37 @@ function UsersPage() {
     }
   }
 
-  async function handleInvite(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setSending(true);
     try {
-      await invite({
-        data: {
-          email,
-          role: inviteRole,
-          displayName: name,
-          redirectTo: `${window.location.origin}/admin`,
-        },
-      });
-      toast.success("আমন্ত্রণ পাঠানো হয়েছে");
+      if (mode === "create") {
+        await addUser({
+          data: {
+            email,
+            password,
+            role: inviteRole,
+            displayName: name,
+          },
+        });
+        toast.success("ব্যবহারকারী যোগ হয়েছে");
+      } else {
+        await invite({
+          data: {
+            email,
+            role: inviteRole,
+            displayName: name,
+            redirectTo: `${window.location.origin}/admin`,
+          },
+        });
+        toast.success("আমন্ত্রণ পাঠানো হয়েছে");
+      }
       setEmail("");
       setName("");
+      setPassword("");
       await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "আমন্ত্রণ পাঠানো যায়নি");
+      toast.error(err instanceof Error ? err.message : "যোগ করা যায়নি");
     } finally {
       setSending(false);
     }
@@ -123,9 +139,25 @@ function UsersPage() {
       </div>
 
       <form
-        onSubmit={handleInvite}
+        onSubmit={handleAdd}
         className="mt-6 grid gap-3 border border-border bg-card p-4 sm:grid-cols-4"
       >
+        <div className="sm:col-span-4 flex gap-2 text-sm">
+          <button
+            type="button"
+            onClick={() => setMode("create")}
+            className={`border px-3 py-1 ${mode === "create" ? "border-primary text-primary" : "border-border"}`}
+          >
+            সরাসরি যোগ
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("invite")}
+            className={`border px-3 py-1 ${mode === "invite" ? "border-primary text-primary" : "border-border"}`}
+          >
+            ইমেইল আমন্ত্রণ
+          </button>
+        </div>
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">ইমেইল</label>
           <input
@@ -158,16 +190,32 @@ function UsersPage() {
             <option value="none">সাধারণ</option>
           </select>
         </div>
+        {mode === "create" && (
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">পাসওয়ার্ড</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="কমপক্ষে ৬ অক্ষর"
+              className="w-full border border-border bg-background px-3 py-2 outline-none focus:border-primary"
+            />
+          </div>
+        )}
         <div className="sm:col-span-4">
           <button
             type="submit"
             disabled={sending}
             className="bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60"
           >
-            {sending ? "পাঠানো হচ্ছে…" : "আমন্ত্রণ পাঠান"}
+            {sending ? "অপেক্ষা করুন…" : mode === "create" ? "ইযুজার যোগ করুন" : "আমন্ত্রণ পাঠান"}
           </button>
           <span className="ml-3 text-xs text-muted-foreground">
-            ইমেইলে লিংক যাবে; পাসওয়ার্ড ঠিক করে প্রবেশ করতে পারবেন।
+            {mode === "create"
+              ? "ইমেইল ও পাসওয়ার্ড দিয়ে সাথে সাথে যোগ হবে; তারা /auth থেকে প্রবেশ করতে পারবে।"
+              : "ইমেইলে লিংক যাবে; পাসওয়ার্ড ঠিক করে প্রবেশ করতে পারবেন।"}
           </span>
         </div>
       </form>

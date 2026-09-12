@@ -20,12 +20,34 @@ const articleInput = z.object({
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data, error } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
-    const roles = (data ?? []).map((r) => r.role as string);
+
+    let roles = (data ?? []).map((r) => r.role as string);
+
+    // যদি কোনো অ্যাডমিনই না থাকে, লগইন করা প্রথম ব্যবহারকারীকে অ্যাডমিন বানাই
+    if (!roles.includes("admin")) {
+      const { count, error: countError } = await supabaseAdmin
+        .from("user_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin");
+      if (countError) throw new Error(countError.message);
+      if ((count ?? 0) === 0) {
+        const { error: grantError } = await supabaseAdmin
+          .from("user_roles")
+          .insert({ user_id: context.userId, role: "admin" });
+        if (grantError && !grantError.message.toLowerCase().includes("duplicate")) {
+          throw new Error(grantError.message);
+        }
+        roles = ["admin"];
+      }
+    }
+
     return { roles, isStaff: roles.includes("admin") || roles.includes("editor") };
   });
 
