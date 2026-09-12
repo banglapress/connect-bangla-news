@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 120" role="img" aria-label="The Connect">
+  <rect width="640" height="120" fill="#fff"/>
+  <text x="20" y="78" font-family="Georgia, 'Times New Roman', serif" font-size="64" font-weight="700" fill="#111">The Connect</text>
+  <rect x="20" y="92" width="200" height="4" fill="#b91c1c"/>
+</svg>
