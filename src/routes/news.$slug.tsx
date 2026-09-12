@@ -4,6 +4,7 @@ import { getArticle } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
+import { publicImageUrl } from "@/lib/image";
 
 const articleQuery = (slug: string) =>
   queryOptions({
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/news/$slug")({
     }
     const a = loaderData.article;
     const description = a.excerpt ?? a.body.slice(0, 150);
+    const image = publicImageUrl(a.image_url);
     const meta = [
       { title: `${a.title} — The Connect` },
       { name: "description", content: description },
@@ -36,10 +38,10 @@ export const Route = createFileRoute("/news/$slug")({
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary_large_image" },
     ];
-    if (a.image_url?.startsWith("https://")) {
+    if (image?.startsWith("https://")) {
       meta.push(
-        { property: "og:image", content: a.image_url },
-        { name: "twitter:image", content: a.image_url },
+        { property: "og:image", content: image },
+        { name: "twitter:image", content: image },
       );
     }
     return { meta };
@@ -65,6 +67,7 @@ function ArticlePage() {
   const { slug } = Route.useParams();
   const { data } = useSuspenseQuery(articleQuery(slug));
   const article = data.article!;
+  const image = publicImageUrl(article.image_url);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -74,7 +77,7 @@ function ArticlePage() {
     datePublished: article.published_at,
     author: { "@type": "Person", name: article.author_name },
     publisher: { "@type": "Organization", name: "The Connect" },
-    ...(article.image_url ? { image: [article.image_url] } : {}),
+    ...(image ? { image: [image] } : {}),
   };
 
   return (
@@ -98,10 +101,10 @@ function ArticlePage() {
             {article.author_name} · {formatBanglaDateTime(article.published_at)}
           </p>
 
-          {article.image_url ? (
+          {image ? (
             <figure className="mt-6">
               <img
-                src={article.image_url}
+                src={image}
                 alt={article.image_caption ?? article.title}
                 className="w-full object-cover"
               />
