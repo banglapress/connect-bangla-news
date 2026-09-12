@@ -17,35 +17,34 @@ const articleInput = z.object({
   status: z.enum(["draft", "published"]),
 });
 
+async function rolesFromClient(supabase: any, userId: string): Promise<string[]> {
+  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (!error) return (data ?? []).map((r: { role: string }) => r.role);
+
+  const message = String(error.message || "");
+  if (!/schema cache|does not exist|could not find the table/i.test(message)) {
+    throw new Error(error.message);
+  }
+
+  const [adminRes, editorRes] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "editor" }),
+  ]);
+  const roles: string[] = [];
+  if (adminRes.data) roles.push("admin");
+  if (editorRes.data) roles.push("editor");
+  if (roles.length) return roles;
+  throw new Error(error.message);
+}
+
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let roles = await rolesFromClient(context.supabase, context.userId);
 
-    const { data, error } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-
-    let roles = (data ?? []).map((r) => r.role as string);
-
-    // যদি কোনো অ্যাডমিনই না থাকে, লগইন করা প্রথম ব্যবহারকারীকে অ্যাডমিন বানাই
-    if (!roles.includes("admin")) {
-      const { count, error: countError } = await supabaseAdmin
-        .from("user_roles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "admin");
-      if (countError) throw new Error(countError.message);
-      if ((count ?? 0) === 0) {
-        const { error: grantError } = await supabaseAdmin
-          .from("user_roles")
-          .insert({ user_id: context.userId, role: "admin" });
-        if (grantError && !grantError.message.toLowerCase().includes("duplicate")) {
-          throw new Error(grantError.message);
-        }
-        roles = ["admin"];
-      }
+    if (!roles.includes("admin") && !roles.includes("editor")) {
+      const boot = await context.supabase.rpc("ensure_first_admin");
+      if (boot.data === true) roles = ["admin"];
     }
 
     return { roles, isStaff: roles.includes("admin") || roles.includes("editor") };

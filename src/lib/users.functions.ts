@@ -5,14 +5,21 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 type AuthCtx = { supabase: any; userId: string };
 
 async function assertAdmin(context: AuthCtx) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", context.userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
+  const { data, error } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (error) {
+    const { data: row, error: rowError } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (rowError) throw new Error(error.message);
+    if (!row) throw new Error("Forbidden: শুধু অ্যাডমিন এই কাজ করতে পারেন");
+    return;
+  }
   if (!data) throw new Error("Forbidden: শুধু অ্যাডমিন এই কাজ করতে পারেন");
 }
 
@@ -39,8 +46,8 @@ export const listUsers = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const [{ data: roles }, { data: profiles }] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("user_id, role"),
-      supabaseAdmin.from("profiles").select("id, display_name"),
+      context.supabase.from("user_roles").select("user_id, role"),
+      context.supabase.from("profiles").select("id, display_name"),
     ]);
 
     const roleBy = new Map((roles ?? []).map((r) => [r.user_id, r.role as "admin" | "editor"]));
@@ -74,16 +81,14 @@ export const setUserRole = createServerFn({ method: "POST" })
       throw new Error("নিজের অ্যাডমিন ভূমিকা নিজে সরানো যাবে না");
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { error: delError } = await supabaseAdmin
+    const { error: delError } = await context.supabase
       .from("user_roles")
       .delete()
       .eq("user_id", data.userId);
     if (delError) throw new Error(delError.message);
 
     if (data.role !== "none") {
-      const { error } = await supabaseAdmin
+      const { error } = await context.supabase
         .from("user_roles")
         .insert({ user_id: data.userId, role: data.role });
       if (error) throw new Error(error.message);
@@ -115,8 +120,8 @@ export const inviteUser = createServerFn({ method: "POST" })
 
     const newUserId = invited?.user?.id;
     if (newUserId && data.role !== "none") {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId);
-      const { error: roleError } = await supabaseAdmin
+      await context.supabase.from("user_roles").delete().eq("user_id", newUserId);
+      const { error: roleError } = await context.supabase
         .from("user_roles")
         .insert({ user_id: newUserId, role: data.role });
       if (roleError) throw new Error(roleError.message);
@@ -152,14 +157,14 @@ export const createUser = createServerFn({ method: "POST" })
     const newUserId = created.user?.id;
     if (!newUserId) throw new Error("ব্যবহারকারী তৈরি হয়নি");
 
-    await supabaseAdmin.from("profiles").upsert({
+    await context.supabase.from("profiles").upsert({
       id: newUserId,
       display_name: displayName,
     });
 
     if (data.role !== "none") {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId);
-      const { error: roleError } = await supabaseAdmin
+      await context.supabase.from("user_roles").delete().eq("user_id", newUserId);
+      const { error: roleError } = await context.supabase
         .from("user_roles")
         .insert({ user_id: newUserId, role: data.role });
       if (roleError) throw new Error(roleError.message);
