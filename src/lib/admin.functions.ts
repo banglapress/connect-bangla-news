@@ -20,10 +20,11 @@ const articleInput = z.object({
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase
+    const { data, error } = await context.supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
     const roles = (data ?? []).map((r) => r.role as string);
     return { roles, isStaff: roles.includes("admin") || roles.includes("editor") };
   });
