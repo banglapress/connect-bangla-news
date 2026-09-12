@@ -29,9 +29,42 @@ export function SiteFooter() {
         </div>
         <div>
           <h4 className="section-rule mb-3 pb-1 text-sm font-bold">যোগাযোগ</h4>
-          <p className="text-sm text-muted-foreground">
-            সম্পাদকীয় ও বিজ্ঞাপন সংক্রান্ত যোগাযোগের ঠিকানা এখনো যুক্ত করা হয়নি।
-          </p>
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>
+              সম্পাদক: <span className="text-foreground">সোহেইল জাফর</span>
+            </p>
+            <p>৭৬ বীরউত্তম কাজী নূরুজ্জামান সরণি, ঢাকা ১২১৫</p>
+            <p>
+              ইমেইল:{" "}
+              <a href="mailto:theconnectbd@gmail.com" className="hover:text-primary">
+                theconnectbd@gmail.com
+              </a>
+            </p>
+            <p>
+              ফোন:{" "}
+              <a href="tel:+8801819525247" className="hover:text-primary">
+                +৮৮০১৮১৯৫২৫২৪৭
+              </a>
+            </p>
+            <p className="pt-1">
+              <a
+                href="https://www.facebook.com/theconnectbd"
+                target="_blank"
+                rel="noreferrer"
+                className="mr-3 hover:text-primary"
+              >
+                ফেসবুক
+              </a>
+              <a
+                href="https://www.youtube.com/@theconnectbd"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-primary"
+              >
+                ইবিতিবে
+              </a>
+            </p>
+          </div>
           <Link to="/auth" className="mt-3 inline-block text-sm text-primary hover:underline">
             সম্পাদকীয় প্রবেশ
           </Link>
