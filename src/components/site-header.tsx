@@ -37,7 +37,7 @@ export function SiteHeader() {
             {open ? <X className="size-6" /> : <Menu className="size-6" />}
           </button>
           <Link to="/" className="mx-auto text-center md:mx-0">
-            <img src="/logo.svg" alt="The Connect" className="mx-auto h-14 w-auto object-contain md:h-20" />
+            <img src="/logo.png" alt="The Connect" className="mx-auto h-14 w-auto object-contain md:h-20" />
           </Link>
           <form onSubmit={submitSearch} className="hidden items-center gap-2 md:flex">
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="খবর খুঁজুন" className="w-44 border border-border bg-card px-3 py-1.5 text-sm outline-none focus:border-primary" />
