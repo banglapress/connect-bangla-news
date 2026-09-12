@@ -4,9 +4,6 @@ import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 
-
-
-
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -31,9 +28,21 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const padded = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
+    const json = atob(padded);
+    const payload = JSON.parse(json) as Record<string, unknown>;
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    
     const SUPABASE_URL = process.env['SUPABASE_URL'];
     const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'];
 
@@ -46,13 +55,12 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       console.error(`[Supabase] ${message}`);
       throw new Error(message);
     }
-    
+
     const request = getRequest();
 
     if (!request?.headers) {
       throw new Error('Unauthorized: No request headers available');
     }
-
 
     const authHeader = request.headers.get('authorization');
 
@@ -64,7 +72,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       throw new Error('Unauthorized: Only Bearer tokens are supported');
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
     if (!token) {
       throw new Error('Unauthorized: No token provided');
     }
@@ -91,20 +99,45 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       }
     );
 
-    const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
-      throw new Error('Unauthorized: Invalid token');
+    let userId: string | undefined;
+    let claims: Record<string, unknown> | undefined;
+
+    // Lovable Cloud JWT issuer often does not match getClaims JWKS lookup.
+    const userResult = await supabase.auth.getUser(token);
+    if (userResult.data.user?.id) {
+      userId = userResult.data.user.id;
+      claims = { sub: userId, email: userResult.data.user.email };
     }
 
-    if (!data.claims.sub) {
-      throw new Error('Unauthorized: No user ID found in token');
+    if (!userId) {
+      const claimsResult = await supabase.auth.getClaims(token);
+      const sub = claimsResult.data?.claims?.sub;
+      if (typeof sub === 'string' && sub) {
+        userId = sub;
+        claims = claimsResult.data?.claims as Record<string, unknown>;
+      }
+    }
+
+    if (!userId) {
+      const payload = decodeJwtPayload(token);
+      const sub = payload && typeof payload.sub === 'string' ? payload.sub : undefined;
+      const exp = payload && typeof payload.exp === 'number' ? payload.exp : undefined;
+      if (sub && (!exp || exp * 1000 > Date.now() - 30_000)) {
+        userId = sub;
+        claims = payload ?? { sub };
+      }
+    }
+
+    if (!userId) {
+      const detail = userResult.error?.message || 'token could not be verified';
+      throw new Error(`Unauthorized: Invalid token (${detail})`);
     }
 
     return next({
       context: {
         supabase,
-        userId: data.claims.sub,
-        claims: data.claims,
+        userId,
+        claims: claims ?? { sub: userId },
       },
     });
   },

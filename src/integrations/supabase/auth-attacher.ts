@@ -6,6 +6,9 @@ import { supabase } from './client'
 // the browser never attaches the bearer token to serverFn RPCs.
 export const attachSupabaseAuth = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
+    // Force a refresh if the access token is expired so custom-domain
+    // sessions still send a usable JWT to server functions.
+    await supabase.auth.getUser().catch(() => undefined)
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     return next({
