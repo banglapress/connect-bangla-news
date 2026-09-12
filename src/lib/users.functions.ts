@@ -103,7 +103,7 @@ export const inviteUser = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
-      redirectTo: data.redirectTo,
+      ...(data.redirectTo ? { redirectTo: data.redirectTo } : {}),
       data: { display_name: data.displayName || data.email.split("@")[0] },
     });
     if (error) throw new Error(error.message);
