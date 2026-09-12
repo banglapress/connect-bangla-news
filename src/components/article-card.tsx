@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ArticleCard as ArticleCardType } from "@/lib/news.functions";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDate } from "@/lib/bangla";
+import { publicImageUrl } from "@/lib/image";
 
 type Props = { article: ArticleCardType; variant?: "lead" | "wide" | "list" };
 
@@ -28,9 +29,9 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
     return (
       <article>
         <Link to={to} params={params} className="group block">
-          {article.image_url ? (
+          {publicImageUrl(article.image_url) ? (
             <img
-              src={article.image_url}
+              src={publicImageUrl(article.image_url)!}
               alt={article.title}
               className="mb-4 aspect-[16/9] w-full object-cover"
               loading="eager"
@@ -58,9 +59,9 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
   return (
     <article className="border-b border-border pb-4">
       <Link to={to} params={params} className="group block">
-        {article.image_url ? (
+        {publicImageUrl(article.image_url) ? (
           <img
-            src={article.image_url}
+            src={publicImageUrl(article.image_url)!}
             alt={article.title}
             className="mb-3 aspect-[16/10] w-full object-cover"
             loading="lazy"

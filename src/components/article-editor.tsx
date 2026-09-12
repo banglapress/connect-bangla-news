@@ -63,11 +63,9 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         upsert: false,
       });
       if (error) throw error;
-      const { data, error: signError } = await supabase.storage
-        .from("news-images")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (signError || !data) throw signError ?? new Error("ছবির ঠিকানা তৈরি হয়নি");
-      set("image_url", data.signedUrl);
+      const { data } = supabase.storage.from("news-images").getPublicUrl(path);
+      if (!data.publicUrl) throw new Error("ছবির ঠিকানা তৈরি হয়নি");
+      set("image_url", data.publicUrl);
       toast.success("ছবি যুক্ত হয়েছে");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "ছবি আপলোড করা যায়নি");
