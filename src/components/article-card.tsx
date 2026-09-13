@@ -1,6 +1,6 @@
 import type { ArticleCard as ArticleCardType } from "@/lib/news.functions";
 import { categoryName } from "@/lib/categories";
-import { formatBanglaDate } from "@/lib/bangla";
+import { formatBanglaDate, writerPath } from "@/lib/bangla";
 import { ArticleMedia } from "@/components/article-media";
 import { articlePath } from "@/lib/ids";
 
@@ -26,8 +26,11 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
           <span className="text-xs font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
           <h2 className="mt-2 font-serif text-3xl font-bold leading-tight group-hover:text-primary md:text-4xl">{article.title}</h2>
           {article.excerpt ? <p className="mt-3 text-[0.95rem] leading-relaxed text-muted-foreground">{article.excerpt}</p> : null}
-          <p className="mt-3 text-xs text-muted-foreground">{article.author_name} · {formatBanglaDate(article.published_at)}</p>
         </a>
+        <p className="mt-3 text-xs text-muted-foreground">
+          <a href={writerPath(article.author_name)} className="hover:text-primary hover:underline">{article.author_name}</a>
+          {" "}· {formatBanglaDate(article.published_at)}
+        </p>
       </article>
     );
   }
@@ -38,8 +41,11 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
         <span className="text-[0.68rem] font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
         <h3 className="mt-1 font-serif text-lg font-semibold leading-snug group-hover:text-primary">{article.title}</h3>
         {article.excerpt ? <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{article.excerpt}</p> : null}
-        <p className="mt-2 text-xs text-muted-foreground">{formatBanglaDate(article.published_at)}</p>
       </a>
+      <p className="mt-2 text-xs text-muted-foreground">
+        <a href={writerPath(article.author_name)} className="hover:text-primary hover:underline">{article.author_name}</a>
+        {" "}· {formatBanglaDate(article.published_at)}
+      </p>
     </article>
   );
 }
