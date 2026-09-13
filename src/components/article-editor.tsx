@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { createArticle, updateArticle } from "@/lib/admin.functions";
 import { listCategories } from "@/lib/category.functions";
+import { listWriters } from "@/lib/writer.functions";
 import { slugifyBangla } from "@/lib/bangla";
 import { uploadNewsImage } from "@/lib/upload-image";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
@@ -61,8 +62,11 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
   const create = useServerFn(createArticle);
   const update = useServerFn(updateArticle);
   const fetchCategories = useServerFn(listCategories);
+  const fetchWriters = useServerFn(listWriters);
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
+  const writersQuery = useQuery({ queryKey: ["writers"], queryFn: () => fetchWriters() });
   const categories: SiteCategory[] = categoriesQuery.data?.length ? categoriesQuery.data : CATEGORIES;
+  const writers = writersQuery.data ?? [];
 
   function set<K extends keyof EditorValues>(key: K, value: EditorValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -159,7 +163,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
       </div>
       {values.content_type === "video" && (
         <div>
-          <label className="mb-1 block text-sm font-medium">ইবিতিব লিংক বা এমবেড কোড</label>
+          <label className="mb-1 block text-sm font-medium">YouTube লিংক বা এমবেড কোড</label>
           <textarea className={`${inputClass} min-h-20`} value={values.youtube_url ?? ""} onChange={(e) => set("youtube_url", e.target.value)} placeholder="https://www.youtube.com/watch?v=..." />
         </div>
       )}
@@ -173,8 +177,20 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">লেখকের নাম</label>
-          <input className={inputClass} value={values.author_name} onChange={(e) => set("author_name", e.target.value)} />
+          <label className="mb-1 block text-sm font-medium">লেখক</label>
+          <select
+            className={inputClass}
+            value={writers.some((w) => w.name === values.author_name) ? values.author_name : "__custom"}
+            onChange={(e) => {
+              if (e.target.value !== "__custom") set("author_name", e.target.value);
+            }}
+          >
+            <option value="__custom">নাম নিজে লিখুন</option>
+            {writers.map((w) => (
+              <option key={w.slug} value={w.name}>{w.name}{w.managed_by_desk ? " (ডেস্ক)" : ""}</option>
+            ))}
+          </select>
+          <input className={`${inputClass} mt-2`} value={values.author_name} onChange={(e) => set("author_name", e.target.value)} placeholder="লেখকের নাম" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">ট্যাগ</label>
@@ -192,8 +208,8 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
                 <button type="button" className="text-primary hover:underline" onClick={() => insertImageToken(index)}>লেখায় বসাও</button>
                 <button type="button" className="text-primary hover:underline" onClick={() => set("image_url", url)}>কভার</button>
                 <button type="button" className="text-destructive hover:underline" onClick={() => setValues((v) => {
-                  const image_urls = (v.image_urls ?? []).filter((_, i) => i !== index);
-                  return { ...v, image_urls, image_url: v.image_url === url ? image_urls[0] ?? null : v.image_url };
+                  const next = (v.image_urls ?? []).filter((_, i) => i !== index);
+                  return { ...v, image_urls: next, image_url: v.image_url === url ? next[0] ?? null : v.image_url };
                 })}>সরান</button>
               </div>
             </div>
