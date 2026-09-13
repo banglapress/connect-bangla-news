@@ -30,16 +30,13 @@ const BN_DAYS = [
 ];
 
 function dhaka(date: Date): Date {
-  // Asia/Dhaka is UTC+6, no DST.
   return new Date(date.getTime() + 6 * 60 * 60 * 1000);
 }
 
 export function formatBanglaDate(value: string | Date | null | undefined): string {
   if (!value) return "";
   const d = dhaka(new Date(value));
-  return `${toBanglaDigits(d.getUTCDate())} ${BN_MONTHS[d.getUTCMonth()]} ${toBanglaDigits(
-    d.getUTCFullYear(),
-  )}`;
+  return `${toBanglaDigits(d.getUTCDate())} ${BN_MONTHS[d.getUTCMonth()]} ${toBanglaDigits(d.getUTCFullYear())}`;
 }
 
 export function formatBanglaDateTime(value: string | Date | null | undefined): string {
@@ -64,4 +61,19 @@ export function slugifyBangla(title: string): string {
     .replace(/^-+|-+$/g, "");
   const suffix = Math.random().toString(36).slice(2, 7);
   return `${base || "khobor"}-${suffix}`;
+}
+
+export function slugifyName(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "") || "lekhok"
+  );
+}
+
+export function writerPath(name: string | null | undefined): string {
+  if (!name) return "/";
+  return `/writer/${encodeURIComponent(slugifyName(name))}`;
 }

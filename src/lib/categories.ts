@@ -22,7 +22,7 @@ export const CATEGORIES: SiteCategory[] = [
   { name: "বিনোদন", slug: "entertainment", show_in_nav: true, nav_order: 11 },
 ];
 
-export const RESERVED_SECTIONS = ["admin", "auth", "search", "news", "category", "login", "api"];
+export const RESERVED_SECTIONS = ["admin", "auth", "search", "news", "category", "login", "api", "writer"];
 
 export function categoryName(slug: string, list: SiteCategory[] = CATEGORIES): string {
   return list.find((c) => c.slug === slug)?.name ?? slug;
@@ -30,8 +30,4 @@ export function categoryName(slug: string, list: SiteCategory[] = CATEGORIES): s
 
 export function navCategories(list: SiteCategory[] = CATEGORIES): SiteCategory[] {
   return list.filter((c) => c.show_in_nav !== false && !c.parent_id).sort((a, b) => (a.nav_order ?? 0) - (b.nav_order ?? 0));
-}
-
-export function articlePath(section: string, publicId: string) {
-  return `/${section}/${publicId}`;
 }
