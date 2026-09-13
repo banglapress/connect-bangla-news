@@ -5,7 +5,7 @@ import { getArticle, getCategoryPage } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
 import { ArticleMedia } from "@/components/article-media";
 import { categoryName } from "@/lib/categories";
-import { formatBanglaDateTime } from "@/lib/bangla";
+import { formatBanglaDateTime, writerPath } from "@/lib/bangla";
 import { renderArticleBody } from "@/lib/body-render";
 
 const categoryQuery = (slug: string) =>
@@ -69,7 +69,8 @@ export const Route = createFileRoute("/$section/")({
               <h1 className="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">{article.title}</h1>
               {article.excerpt ? <p className="mt-3 text-lg leading-relaxed text-muted-foreground">{article.excerpt}</p> : null}
               <p className="mt-4 border-y border-border py-2 text-sm text-muted-foreground">
-                {article.author_name} · {formatBanglaDateTime(article.published_at)}
+                <a href={writerPath(article.author_name)} className="text-foreground hover:text-primary hover:underline">{article.author_name}</a>
+                {" "}· {formatBanglaDateTime(article.published_at)}
               </p>
               <div className="mt-6">
                 <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} />
