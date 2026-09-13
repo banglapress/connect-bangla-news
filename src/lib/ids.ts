@@ -10,9 +10,9 @@ function randomChar(source: string) {
 
 export function makePublicId(): string {
   for (let attempt = 0; attempt < 40; attempt++) {
-    let id = "";
-    for (let i = 0; i < 4; i++) id += randomChar(ALL);
-    if (/[a-z]/.test(id) && /[0-9]/.test(id)) return id;
+    let value = "";
+    for (let i = 0; i < 4; i++) value += randomChar(ALL);
+    if (/[a-z]/.test(value) && /[0-9]/.test(value)) return value;
   }
   return randomChar(LETTERS) + randomChar(LETTERS) + randomChar(DIGITS) + randomChar(ALL);
 }
@@ -22,10 +22,13 @@ export function isPublicId(value: string) {
 }
 
 export function isArticlePathId(value: string) {
-  return isPublicId(value) || /^[a-z0-9]{10}$/.test(value);
+  const key = decodeURIComponent(value || "");
+  return isPublicId(key) || /^[a-z0-9]{5,12}$/.test(key);
 }
 
 export function articlePath(article: { public_id?: string | null; slug?: string | null }) {
-  const id = article.public_id || article.slug;
-  return id ? `/${id}` : "/";
+  if (article.public_id) return `/${article.public_id}`;
+  if (article.slug && isArticlePathId(article.slug)) return `/${article.slug}`;
+  if (article.slug) return `/news/${encodeURIComponent(article.slug)}`;
+  return "/";
 }
