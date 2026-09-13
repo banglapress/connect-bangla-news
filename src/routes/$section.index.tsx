@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { getArticle, getCategoryPage } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
 import { ArticleMedia } from "@/components/article-media";
@@ -23,15 +24,22 @@ export const Route = createFileRoute("/$section/")({
   loader: async ({ context, params }) => {
     const key = decodeURIComponent(params.section || "");
     const story = await context.queryClient.ensureQueryData(articleQuery(key));
-    if (story.article) return { kind: "article" as const, key };
+    if (story.article) {
+      return { kind: "article" as const, key, pageTitle: `${story.article.title} — The Connect` };
+    }
     const page = await context.queryClient.ensureQueryData(categoryQuery(key));
-    if (page.category || page.articles.length) return { kind: "category" as const, key };
+    if (page.category || page.articles.length) {
+      const name = page.category?.name ?? categoryName(key);
+      return { kind: "category" as const, key, pageTitle: `${name} — The Connect` };
+    }
     throw notFound();
   },
-  head: ({ params }) => {
-    const key = decodeURIComponent(params.section || "");
-    return { meta: [{ title: `${key} — The Connect` }] };
-  },
+  head: ({ loaderData }) => ({
+    meta: [
+      { charSet: "utf-8" },
+      { title: loaderData?.pageTitle || "The Connect" },
+    ],
+  }),
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
       <h1 className="font-serif text-3xl font-bold">পাতাটি পাওয়া যায়নি</h1>
@@ -40,8 +48,14 @@ export const Route = createFileRoute("/$section/")({
   ),
   component: function SectionIndex() {
     const { section } = Route.useParams();
+    const loaderData = Route.useLoaderData();
     const key = decodeURIComponent(section || "");
     const story = useSuspenseQuery(articleQuery(key));
+
+    useEffect(() => {
+      if (loaderData?.pageTitle) document.title = loaderData.pageTitle;
+    }, [loaderData?.pageTitle]);
+
     if (story.data.article) {
       const article = story.data.article;
       const images = article.image_urls?.length ? article.image_urls : article.image_url ? [article.image_url] : [];
