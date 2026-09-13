@@ -9,12 +9,7 @@ import { categoryName } from "@/lib/categories";
 import { formatBanglaDate } from "@/lib/bangla";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({
-    meta: [
-      { title: "সম্পাদকীয় প্যানেল — The Connect" },
-      { name: "robots", content: "noindex" },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "সম্পাদকীয় প্যানেল — The Connect" }, { name: "robots", content: "noindex" }] }),
   component: AdminDashboard,
 });
 
@@ -25,13 +20,8 @@ function AdminDashboard() {
   const fetchArticles = useServerFn(listAllArticles);
   const removeArticle = useServerFn(deleteArticle);
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
-
   const access = useQuery({ queryKey: ["access"], queryFn: () => fetchAccess() });
-  const articles = useQuery({
-    queryKey: ["admin-articles"],
-    queryFn: () => fetchArticles(),
-    enabled: access.data?.isStaff === true,
-  });
+  const articles = useQuery({ queryKey: ["admin-articles"], queryFn: () => fetchArticles(), enabled: access.data?.isStaff === true });
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -51,26 +41,17 @@ function AdminDashboard() {
     }
   }
 
-  if (access.isLoading) {
-    return <p className="mx-auto max-w-5xl px-4 py-16 text-muted-foreground">অপেক্ষা করুন…</p>;
-  }
-
+  if (access.isLoading) return <p className="mx-auto max-w-5xl px-4 py-16 text-muted-foreground">অপেক্ষা করুন…</p>;
   if (access.isError) {
     const message = access.error instanceof Error ? access.error.message : "অজানা ত্রুটি";
-    const needsLogin = /unauthorized|authorization|token/i.test(message);
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <h1 className="font-serif text-2xl font-bold">অনুমতি যাচাই করা যায়নি</h1>
-        <p className="mt-3 text-muted-foreground">{needsLogin ? "এই ডোমেইনে লগইন তথ্য পাওয়া যায়নি।" : "সার্ভার থেকে ভূমিকা পড়া যায়নি।"}</p>
         <p className="mt-3 break-words text-sm text-destructive">{message}</p>
-        <div className="mt-6 flex justify-center gap-3">
-          <button onClick={() => void access.refetch()} className="bg-primary px-4 py-2 text-sm text-primary-foreground">আবার চেষ্টা করুন</button>
-          <button onClick={signOut} className="border border-border px-4 py-2 text-sm">সাইন আউট</button>
-        </div>
+        <button onClick={signOut} className="mt-6 border border-border px-4 py-2 text-sm">সাইন আউট</button>
       </div>
     );
   }
-
   if (!access.data?.isStaff) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -81,47 +62,32 @@ function AdminDashboard() {
   }
 
   const rows = (articles.data ?? []).filter((a) => filter === "all" || a.status === filter);
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="section-rule flex flex-wrap items-center justify-between gap-3 pb-2">
         <h1 className="font-serif text-2xl font-bold">সম্পাদকীয় প্যানেল</h1>
         <div className="flex flex-wrap gap-3">
-          {access.data.roles.includes("admin") && (
-            <Link to="/admin/users" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ব্যবহারকারী</Link>
-          )}
-          {access.data.roles.includes("admin") && (
-            <Link to="/admin/categories" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ক্যাটেগরি</Link>
-          )}
+          {access.data.roles.includes("admin") && <Link to="/admin/users" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ব্যবহারকারী</Link>}
+          {access.data.roles.includes("admin") && <Link to="/admin/categories" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ক্যাটেগরি</Link>}
+          <Link to="/admin/writers" className="border border-border px-4 py-2 text-sm hover:bg-secondary">লেখক</Link>
           <Link to="/admin/new" className="bg-primary px-4 py-2 text-sm text-primary-foreground">নতুন খবর</Link>
           <button onClick={signOut} className="border border-border px-4 py-2 text-sm">সাইন আউট</button>
         </div>
       </div>
-
       <div className="mt-4 flex gap-2 text-sm">
         {([["all", "সব"], ["published", "প্রকাশিত"], ["draft", "ড্রাফট"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setFilter(key)} className={`border px-3 py-1 ${filter === key ? "border-primary text-primary" : "border-border"}`}>{label}</button>
         ))}
       </div>
-
-      {articles.isLoading ? (
-        <p className="py-10 text-muted-foreground">খবর আনা হচ্ছে…</p>
-      ) : rows.length === 0 ? (
-        <p className="py-10 text-muted-foreground">কোনো খবর নেই।</p>
-      ) : (
+      {articles.isLoading ? <p className="py-10 text-muted-foreground">খবর আনা হচ্ছে…</p> : rows.length === 0 ? <p className="py-10 text-muted-foreground">কোনো খবর নেই।</p> : (
         <div className="mt-6 divide-y divide-border border border-border">
           {rows.map((a) => (
             <div key={a.id} className="flex flex-wrap items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{a.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {categoryName(a.category_slug)} · {a.status === "published" ? `প্রকাশিত ${formatBanglaDate(a.published_at)}` : "ড্রাফট"}
-                </p>
+                <p className="text-xs text-muted-foreground">{categoryName(a.category_slug)} · {a.status === "published" ? `প্রকাশিত ${formatBanglaDate(a.published_at)}` : "ড্রাফট"}</p>
               </div>
               <Link to="/admin/$id/edit" params={{ id: a.id }} className="border border-border px-3 py-1 text-sm hover:bg-secondary">সম্পাদনা</Link>
-              {a.status === "published" && (
-                <a href={`/${a.category_slug}/${a.public_id || a.slug}`} className="px-2 text-sm text-primary hover:underline">দেখুন</a>
-              )}
               <button onClick={() => handleDelete(a.id, a.title)} className="px-2 text-sm text-destructive hover:underline">মুছুন</button>
             </div>
           ))}
