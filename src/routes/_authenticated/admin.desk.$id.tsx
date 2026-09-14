@@ -23,6 +23,8 @@ function StoryDetailPage() {
   const addHit = useServerFn(addCoverageToStory);
   const [busy, setBusy] = useState(false);
   const [hits, setHits] = useState<any[] | null>(null);
+  const [diagnostics, setDiagnostics] = useState<any[] | null>(null);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
   const valid = UUID.test(id);
   const detail = useQuery({
     queryKey: ["desk-story", id],
@@ -47,12 +49,19 @@ function StoryDetailPage() {
         <div className="flex flex-wrap gap-3 text-sm">
           <button type="button" disabled={busy} onClick={async () => {
             setBusy(true);
+            setDiscoverError(null);
             try {
               const out = await discover({ data: { storyId: id } });
               setHits(out.hits);
-              toast.success(`Found ${out.hits.length} related items (${out.provider})`);
+              setDiagnostics(out.diagnostics ?? []);
+              const failed = (out.diagnostics ?? []).find((row: any) => row.error);
+              if (failed) setDiscoverError(failed.error);
+              toast.message(`Discovery finished · ${out.hits.length} hits`);
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Discovery failed");
+              const message = err instanceof Error ? err.message : "Discovery failed";
+              setDiscoverError(message);
+              setDiagnostics([{ label: "request", query: "", requestUrl: "", provider: "gdelt", status: null, resultCount: 0, durationMs: 0, error: message, bodyPreview: null }]);
+              toast.error(message);
             } finally { setBusy(false); }
           }} className="border border-border px-4 py-2">{busy ? "Searching…" : "Find Related Coverage"}</button>
           <button type="button" disabled={busy} onClick={async () => {
@@ -69,16 +78,38 @@ function StoryDetailPage() {
         </div>
       </div>
 
+      {diagnostics ? (
+        <section className="mb-8 border border-border p-4 text-sm">
+          <h2 className="font-serif text-lg font-bold">Discovery request</h2>
+          {discoverError ? <p className="mt-2 text-destructive">{discoverError}</p> : null}
+          <div className="mt-3 space-y-3">
+            {diagnostics.map((row: any) => (
+              <div key={row.label} className="border border-border p-3 text-xs">
+                <p className="font-medium">{row.label}</p>
+                <p>provider: {row.provider}</p>
+                <p>query: {row.query}</p>
+                <p className="break-all">url: {row.requestUrl}</p>
+                <p>status: {row.status ?? "no HTTP response"}</p>
+                <p>result count: {row.resultCount}</p>
+                <p>duration: {row.durationMs} ms</p>
+                <p>error: {row.error || "none"}</p>
+                {row.bodyPreview ? <p className="mt-1 text-muted-foreground">body: {row.bodyPreview}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {hits ? (
         <section className="mb-8 border border-border p-4 text-sm">
           <h2 className="font-serif text-lg font-bold">Related coverage</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Discovery hits are candidates only. They are not trusted facts until you add them and run Prepare Research.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Candidates only. Not trusted facts.</p>
           <div className="mt-3 divide-y divide-border">
             {hits.length === 0 ? <p className="py-2 text-muted-foreground">No extra coverage found.</p> : hits.map((hit) => (
               <div key={hit.url} className="flex flex-wrap items-center gap-3 py-2">
                 <div className="min-w-0 flex-1">
                   <a href={hit.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">{hit.title}</a>
-                  <p className="text-xs text-muted-foreground">{hit.domain} {hit.publishedAt ? `· ${hit.publishedAt}` : ""}</p>
+                  <p className="text-xs text-muted-foreground">{hit.domain}</p>
                 </div>
                 <button type="button" className="text-sm text-primary" onClick={async () => {
                   try {
@@ -100,7 +131,7 @@ function StoryDetailPage() {
         <p className="mt-2">Sources: {sources.length} · Research: {story.research_status || "pending"}</p>
         <ul className="mt-3 list-disc space-y-1 pl-5">
           {sources.map((src: any) => (
-            <li key={src.id}><a className="text-primary hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title || src.url}</a>{src.origin === "discovery" ? " (discovery)" : ""}</li>
+            <li key={src.id}><a className="text-primary hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title || src.url}</a></li>
           ))}
         </ul>
       </section>
