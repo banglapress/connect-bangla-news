@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getDeskStoryDetail, prepareResearch } from "@/lib/desk/research.functions";
 import { generateDeskArticle } from "@/lib/desk/article.functions";
 import { addCoverageToStory, findRelatedCoverage, setDiscoveryHitStatus } from "@/lib/desk/discovery.functions";
+import { DeskSocialPanel } from "@/components/desk-social-panel";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -115,7 +116,7 @@ function StoryDetailPage() {
               setDiagnostics(out.diagnostics ?? []);
               const failed = (out.diagnostics ?? []).find((row: any) => row.error);
               if (failed) setDiscoverError(failed.error);
-              toast.message(`Discovery finished · ${out.hits.length} candidates · ${out.provider}`);
+              toast.message(`Discovery finished \u00b7 ${out.hits.length} candidates \u00b7 ${out.provider}`);
               await refresh();
             } catch (err) {
               const message = err instanceof Error ? err.message : "Discovery failed";
@@ -128,7 +129,7 @@ function StoryDetailPage() {
             setBusy(true);
             try {
               const out = await research({ data: { id } });
-              toast.success("Research packet ready · " + out.provider);
+              toast.success("Research packet ready \u00b7 " + out.provider);
               await refresh();
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Research failed");
@@ -138,7 +139,7 @@ function StoryDetailPage() {
             setBusy(true);
             try {
               const out = await writeArticle({ data: { id } });
-              toast.success(out.article.article_status === "needs_review" ? "Draft saved · needs review" : "Draft saved · " + out.provider);
+              toast.success(out.article.article_status === "needs_review" ? "Draft saved \u00b7 needs review" : "Draft saved \u00b7 " + out.provider);
               await refresh();
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "Article generation failed");
@@ -160,7 +161,7 @@ function StoryDetailPage() {
                 <p>provider: {row.provider}</p>
                 <p>query: {row.query}</p>
                 <p className="break-all">url: {row.requestUrl}</p>
-                <p>status: {row.status ?? "no HTTP response"}{row.rateLimited ? " · rate_limited" : ""}</p>
+                <p>status: {row.status ?? "no HTTP response"}{row.rateLimited ? " \u00b7 rate_limited" : ""}</p>
                 <p>result count: {row.resultCount}</p>
                 <p>duration: {row.durationMs} ms</p>
                 <p>error: {row.error || "none"}</p>
@@ -177,7 +178,7 @@ function StoryDetailPage() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 text-xs">
           <p>Provider: {story.research_provider || packet?.provider || "not run"}</p>
           <p>Model: {story.article_model || story.research_model || packet?.model || "—"}</p>
-          <p>Research status: {story.research_status || "pending"}{packet?.quality ? ` · ${packet.quality}` : ""}</p>
+          <p>Research status: {story.research_status || "pending"}{packet?.quality ? ` \u00b7 ${packet.quality}` : ""}</p>
           <p>Article status: {story.article_status || "not generated"}</p>
           <p>Sources: {sources.length}</p>
           <p>Generated: {story.article_generated_at ? formatBanglaDateTime(story.article_generated_at) : story.research_generated_at ? formatBanglaDateTime(story.research_generated_at) : "—"}</p>
@@ -199,6 +200,8 @@ function StoryDetailPage() {
           </div>
         ) : null}
       </section>
+
+      <DeskSocialPanel storyId={id} />
 
       <section className="mb-8 border border-border p-4 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -228,11 +231,11 @@ function StoryDetailPage() {
                 <a href={hit.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">{hit.title}</a>
                 <p className="text-xs text-muted-foreground">
                   {hit.domain || "unknown source"}
-                  {hit.published_at ? ` · ${formatBanglaDateTime(hit.published_at)}` : ""}
-                  {` · ${scoreLabel(hit.relevance)} · `}
+                  {hit.published_at ? ` \u00b7 ${formatBanglaDateTime(hit.published_at)}` : ""}
+                  {` \u00b7 ${scoreLabel(hit.relevance)} \u00b7 `}
                   <span className={scoreValue(hit.relevance) >= 0.7 ? "font-semibold text-foreground" : ""}>{bandLabel(hit.relevance)}</span>
-                  {hit.status ? ` · ${hit.status}` : ""}
-                  {hit.provider ? ` · ${hit.provider}` : ""}
+                  {hit.status ? ` \u00b7 ${hit.status}` : ""}
+                  {hit.provider ? ` \u00b7 ${hit.provider}` : ""}
                 </p>
                 {hit.snippet ? <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{hit.snippet}</p> : null}
               </div>
@@ -254,7 +257,7 @@ function StoryDetailPage() {
                     <input type="checkbox" className="mt-1" checked={!!selected[hit.id]} onChange={(event) => setSelected((current) => ({ ...current, [hit.id]: event.target.checked }))} disabled={!hit.id || hit.status === "ignored"} />
                     <div className="min-w-0 flex-1">
                       <a href={hit.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">{hit.title}</a>
-                      <p className="text-xs text-muted-foreground">{hit.domain || "unknown source"}{` · ${scoreLabel(hit.relevance)} · ${bandLabel(hit.relevance)}`}{hit.status ? ` · ${hit.status}` : ""}</p>
+                      <p className="text-xs text-muted-foreground">{hit.domain || "unknown source"}{` \u00b7 ${scoreLabel(hit.relevance)} \u00b7 ${bandLabel(hit.relevance)}`}{hit.status ? ` \u00b7 ${hit.status}` : ""}</p>
                     </div>
                     <div className="flex gap-3 text-sm">
                       <button type="button" className="text-primary" disabled={busy || hit.status === "added"} onClick={async () => { try { await addOne(hit); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not add"); } }}>{hit.status === "added" ? "Added" : "Add to story"}</button>
@@ -269,7 +272,7 @@ function StoryDetailPage() {
 
       <section className="mb-8 border border-border p-4 text-sm">
         <h2 className="font-serif text-lg font-bold">Story Cluster</h2>
-        <p className="mt-2">Sources: {sources.length} · Research: {story.research_status || "pending"}</p>
+        <p className="mt-2">Sources: {sources.length} \u00b7 Research: {story.research_status || "pending"}</p>
         <ul className="mt-3 list-disc space-y-1 pl-5">
           {sources.map((src: any) => (
             <li key={src.id}><a className="text-primary hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title || src.url}</a></li>
@@ -305,7 +308,7 @@ function StoryDetailPage() {
       {packet ? (
         <section className="border border-border p-4 text-sm">
           <h2 className="font-serif text-lg font-bold">Research Packet</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{packet.provider}{packet.model ? ` · ${packet.model}` : ""}{packet.quality ? ` · ${packet.quality}` : ""}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{packet.provider}{packet.model ? ` \u00b7 ${packet.model}` : ""}{packet.quality ? ` \u00b7 ${packet.quality}` : ""}</p>
           <p className="mt-2"><strong>What happened:</strong> {packet.whatHappened || structured?.summary}</p>
           {packet.keyFacts?.length ? (
             <div className="mt-3">
