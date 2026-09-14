@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getDeskStoryDetail, prepareResearch } from "@/lib/desk/research.functions";
+import { generateDeskArticle } from "@/lib/desk/article.functions";
 import { addCoverageToStory, findRelatedCoverage, setDiscoveryHitStatus } from "@/lib/desk/discovery.functions";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
@@ -36,6 +37,7 @@ function StoryDetailPage() {
   const queryClient = useQueryClient();
   const load = useServerFn(getDeskStoryDetail);
   const research = useServerFn(prepareResearch);
+  const writeArticle = useServerFn(generateDeskArticle);
   const discover = useServerFn(findRelatedCoverage);
   const addHit = useServerFn(addCoverageToStory);
   const setStatus = useServerFn(setDiscoveryHitStatus);
@@ -69,6 +71,9 @@ function StoryDetailPage() {
 
   const { story, sources, claims, facts } = detail.data;
   const packet = story.research_packet;
+  const structured = packet?.structured || (packet?.key_facts ? packet : null);
+  const articleWarnings = Array.isArray(story.article_warnings) ? story.article_warnings : packet?.warnings || [];
+  const researchWarnings = structured?.warnings || packet?.warnings || [];
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["desk-story", id] });
@@ -129,6 +134,17 @@ function StoryDetailPage() {
               toast.error(err instanceof Error ? err.message : "Research failed");
             } finally { setBusy(false); }
           }} className="bg-primary px-4 py-2 text-primary-foreground">Prepare Research</button>
+          <button type="button" disabled={busy} onClick={async () => {
+            setBusy(true);
+            try {
+              const out = await writeArticle({ data: { id } });
+              toast.success(out.article.article_status === "needs_review" ? "Draft saved · needs review" : "Draft saved · " + out.provider);
+              await refresh();
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Article generation failed");
+            } finally { setBusy(false); }
+          }} className="border border-border px-4 py-2">{story.article_id ? "Regenerate" : "Generate AI Article"}</button>
+          {story.article_id ? <a href={`/admin/${story.article_id}/edit`} className="border border-border px-3 py-2">Open Draft</a> : null}
           <a href="/admin/desk" className="border border-border px-3 py-2">Back to Story Monitor</a>
         </div>
       </div>
@@ -154,6 +170,35 @@ function StoryDetailPage() {
           </div>
         </section>
       ) : null}
+
+      <section className="mb-8 border border-border p-4 text-sm">
+        <h2 className="font-serif text-lg font-bold">AI Article</h2>
+        <p className="mt-2 text-xs text-muted-foreground">Gemini research and original Bangla draft. Saved as draft only. Never auto-published.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 text-xs">
+          <p>Provider: {story.research_provider || packet?.provider || "not run"}</p>
+          <p>Model: {story.article_model || story.research_model || packet?.model || "—"}</p>
+          <p>Research status: {story.research_status || "pending"}{packet?.quality ? ` · ${packet.quality}` : ""}</p>
+          <p>Article status: {story.article_status || "not generated"}</p>
+          <p>Sources: {sources.length}</p>
+          <p>Generated: {story.article_generated_at ? formatBanglaDateTime(story.article_generated_at) : story.research_generated_at ? formatBanglaDateTime(story.research_generated_at) : "—"}</p>
+        </div>
+        {researchWarnings.length || articleWarnings.length ? (
+          <div className="mt-3 space-y-1 border border-border bg-secondary/40 p-3">
+            {[...researchWarnings, ...articleWarnings].map((row: any, index: number) => (
+              <p key={`${row.code}-${index}`} className="text-sm">{row.message || row}</p>
+            ))}
+          </div>
+        ) : null}
+        {story.draft_title ? (
+          <div className="mt-4">
+            <p className="font-medium">{story.draft_title}</p>
+            {story.draft_excerpt ? <p className="mt-1 text-muted-foreground">{story.draft_excerpt}</p> : null}
+            {story.seo_title ? <p className="mt-2 text-xs">SEO title: {story.seo_title}</p> : null}
+            {story.meta_description ? <p className="text-xs">Meta: {story.meta_description}</p> : null}
+            {story.draft_body ? <p className="mt-3 whitespace-pre-wrap text-xs leading-relaxed line-clamp-8">{story.draft_body}</p> : null}
+          </div>
+        ) : null}
+      </section>
 
       <section className="mb-8 border border-border p-4 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -260,7 +305,37 @@ function StoryDetailPage() {
       {packet ? (
         <section className="border border-border p-4 text-sm">
           <h2 className="font-serif text-lg font-bold">Research Packet</h2>
-          <p className="mt-2"><strong>What happened:</strong> {packet.whatHappened}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{packet.provider}{packet.model ? ` · ${packet.model}` : ""}{packet.quality ? ` · ${packet.quality}` : ""}</p>
+          <p className="mt-2"><strong>What happened:</strong> {packet.whatHappened || structured?.summary}</p>
+          {packet.keyFacts?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">Multi-source supported (not automatically verified)</p>
+              <ul className="mt-1 list-disc pl-5">{packet.keyFacts.map((row: string) => <li key={row}>{row}</li>)}</ul>
+            </div>
+          ) : null}
+          {packet.conflicts?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">⚠ Conflicting information</p>
+              <ul className="mt-1 list-disc pl-5">{packet.conflicts.map((row: string) => <li key={row}>{row}</li>)}</ul>
+            </div>
+          ) : null}
+          {packet.needsVerification?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">⚠ Needs verification / single-source</p>
+              <ul className="mt-1 list-disc pl-5">{packet.needsVerification.map((row: string) => <li key={row}>{row}</li>)}</ul>
+            </div>
+          ) : null}
+          <div className="mt-3">
+            <p className="font-medium">Source links</p>
+            <ul className="mt-1 list-disc pl-5">
+              {(packet.sourceLinks || sources).map((row: any) => (
+                <li key={row.url || row.id}>
+                  <a className="text-primary hover:underline" href={row.url} target="_blank" rel="noreferrer">{row.name || row.title || row.url}</a>
+                  {row.title && row.name ? ` — ${row.title}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       ) : null}
     </div>
