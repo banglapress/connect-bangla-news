@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
+import type { SourceKind } from "@/lib/desk/source-kinds";
 
 export type NewsSource = {
   id: string;
@@ -14,6 +15,8 @@ export type NewsSource = {
   trust_level: number;
   priority: number;
   notes: string | null;
+  source_kind?: SourceKind | string | null;
+  discovery_mode?: string | null;
   last_fetched_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
@@ -30,6 +33,7 @@ const sourceInput = z.object({
   trust_level: z.number().int().min(1).max(5).optional().default(3),
   priority: z.number().int().optional().default(100),
   notes: z.string().optional().nullable(),
+  source_kind: z.enum(["news_agency", "major_news", "international", "specialist", "other"]).optional().default("other"),
 });
 
 export const listNewsSources = createServerFn({ method: "GET" })
@@ -38,7 +42,7 @@ export const listNewsSources = createServerFn({ method: "GET" })
     await assertDeskStaff(context as { supabase: any; userId: string });
     const full = await context.supabase
       .from("news_sources")
-      .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes, last_fetched_at, last_success_at, last_error")
+      .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes, source_kind, discovery_mode, last_fetched_at, last_success_at, last_error")
       .order("priority");
     if (!full.error) return (full.data ?? []) as NewsSource[];
     const basic = await context.supabase
@@ -54,7 +58,8 @@ export const saveNewsSource = createServerFn({ method: "POST" })
   .inputValidator((data) => sourceInput.parse(data))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const payload = {
+    const hasRss = Boolean(data.rss_url && data.rss_url.trim());
+    const payload: Record<string, unknown> = {
       name: data.name.trim(),
       homepage_url: data.homepage_url || null,
       rss_url: data.rss_url || null,
@@ -64,16 +69,22 @@ export const saveNewsSource = createServerFn({ method: "POST" })
       trust_level: data.trust_level ?? 3,
       priority: data.priority ?? 100,
       notes: data.notes || null,
+      source_kind: data.source_kind || "other",
+      discovery_mode: hasRss ? "rss" : "manual",
       updated_at: new Date().toISOString(),
     };
-    if (data.id) {
-      const { error } = await context.supabase.from("news_sources").update(payload).eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { ok: true, id: data.id };
+    const write = async (body: Record<string, unknown>) => {
+      if (data.id) return context.supabase.from("news_sources").update(body).eq("id", data.id).select("id").maybeSingle();
+      return context.supabase.from("news_sources").insert(body).select("id").single();
+    };
+    let res = await write(payload);
+    if (res.error && /column|schema cache|source_kind|discovery_mode/i.test(res.error.message)) {
+      delete payload.source_kind;
+      delete payload.discovery_mode;
+      res = await write(payload);
     }
-    const { data: row, error } = await context.supabase.from("news_sources").insert(payload).select("id").single();
-    if (error) throw new Error(error.message);
-    return { ok: true, id: row.id };
+    if (res.error) throw new Error(res.error.message);
+    return { ok: true, id: data.id || res.data?.id };
   });
 
 export const setNewsSourceActive = createServerFn({ method: "POST" })
