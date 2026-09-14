@@ -28,10 +28,13 @@ function isExactOrRepublish(a: DiscoveryHit, b: DiscoveryHit) {
   const urlB = (canonicalizeUrl(b.url) || b.url).replace(/\/$/, "");
   if (urlA === urlB) return true;
   const sameDomain = hostnameOf(a.domain || a.url) === hostnameOf(b.domain || b.url);
-  if (!sameDomain) return false;
   const similar = titleSimilarity(a.title, b.title);
-  if (similar >= 0.92) return true;
-  if (similar >= 0.78 && developmentKey(a.title) === developmentKey(b.title) && developmentKey(a.title)) return true;
+  if (similar >= 0.96) return true;
+  if (!sameDomain) return false;
+  if (similar >= 0.9) return true;
+  const devA = developmentKey(a.title);
+  const devB = developmentKey(b.title);
+  if (similar >= 0.78 && devA && devA === devB) return true;
   return false;
 }
 
@@ -55,14 +58,28 @@ function diversify(hits: DiscoveryHit[]) {
   const primary: DiscoveryHit[] = [];
   const rest: DiscoveryHit[] = [];
   const seen = new Set<string>();
+  const usedDev = new Set<string>();
+
   for (const hit of ranked) {
     const domain = hostnameOf(hit.domain || hit.url);
-    if (primary.length < 8 && (!seen.has(domain) || hit.relevance >= 0.82)) {
+    const dev = `${domain}::${developmentKey(hit.title) || titleKey(domain, hit.title)}`;
+    const novelDomain = !seen.has(domain);
+    const novelDevelopment = !usedDev.has(dev);
+    if (primary.length < 8 && (novelDomain || (novelDevelopment && hit.relevance >= 0.7))) {
       primary.push(hit);
       seen.add(domain);
+      usedDev.add(dev);
     } else {
       rest.push(hit);
     }
+  }
+
+  for (const hit of rest.splice(0)) {
+    if (primary.length >= 8) {
+      rest.push(hit);
+      continue;
+    }
+    primary.push(hit);
   }
   return [...primary, ...rest];
 }

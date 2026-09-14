@@ -1,5 +1,14 @@
 import { isTrustedDiscoveryDomain } from "./trusted";
-import { EVENT_KEYWORDS, contentTokens, entityList, normalizeMatch, stripInflection, type DiscoveryEntities } from "./entities";
+import {
+  DEVELOPMENT_MARKERS,
+  EVENT_KEYWORDS,
+  conceptGroups,
+  contentTokens,
+  entityList,
+  normalizeMatch,
+  termMatchesHay,
+  type DiscoveryEntities,
+} from "./entities";
 import type { DiscoveryHit } from "./types";
 
 export const DEFAULT_DISCOVERY_THRESHOLDS = {
@@ -20,27 +29,32 @@ function hayOf(title: string, snippet?: string | null) {
   return normalizeMatch(`${title} ${snippet || ""}`);
 }
 
-function matchRate(needles: string[], hay: string) {
-  const terms = needles.map((row) => normalizeMatch(stripInflection(row))).filter((row) => row.length >= 2);
-  if (!terms.length) return 0;
-  const unique = [...new Set(terms)];
-  const hits = unique.filter((term) => hay.includes(term)).length;
-  return Math.min(1, hits / Math.min(unique.length, 3));
+function hayTokenSet(title: string, snippet?: string | null) {
+  return new Set(contentTokens(`${title} ${snippet || ""}`));
+}
+
+function conceptRate(terms: string[], hay: string, tokens: Set<string>) {
+  const groups = conceptGroups(terms);
+  if (!groups.length) return 0;
+  const hits = groups.filter((group) => group.some((term) => termMatchesHay(term, hay, tokens))).length;
+  return Math.min(1, hits / Math.min(groups.length, 2));
 }
 
 function phraseScore(phrases: string[], hay: string) {
   if (!phrases.length) return 0;
-  const hits = phrases.filter((phrase) => hay.includes(normalizeMatch(phrase))).length;
-  if (hits >= 1 && phrases.some((phrase) => phrase.split(" ").length >= 2 && hay.includes(normalizeMatch(phrase)))) return 1;
-  return hits ? 0.55 : 0;
+  const multi = phrases.filter((phrase) => phrase.trim().split(/\s+/).length >= 2);
+  const exact = multi.filter((phrase) => hay.includes(normalizeMatch(phrase)));
+  if (exact.length) return 1;
+  const any = phrases.filter((phrase) => hay.includes(normalizeMatch(phrase)));
+  return any.length ? 0.55 : 0;
 }
 
-function eventScore(events: string[], hay: string) {
+function eventScore(events: string[], hay: string, tokens: Set<string>) {
+  const named = events.filter((event) => termMatchesHay(event, hay, tokens));
   const extra = EVENT_KEYWORDS.filter((word) => hay.includes(normalizeMatch(word)));
-  const named = events.filter((event) => hay.includes(normalizeMatch(event)));
   if (named.length && extra.length) return 1;
-  if (named.length || extra.length >= 2) return 0.75;
-  if (extra.length) return 0.4;
+  if (named.length || extra.length >= 2) return 0.8;
+  if (extra.length) return 0.45;
   return 0;
 }
 
@@ -63,17 +77,31 @@ function recencyScore(publishedAt: string | null) {
   return 0.2;
 }
 
-function coreSameEventBoost(entities: DiscoveryEntities, hay: string) {
-  const cores = [
-    ...entities.organizations,
+function coreConcepts(entities: DiscoveryEntities) {
+  return conceptGroups([
     ...entities.people,
-    ...entities.institutions.filter((row) => /ডাকসু|DUCSU|ঢাবি|বিশ্ববিদ্যাল/i.test(row)),
-    ...entities.events.filter((row) => /সংগ্রহশালা|museum|ছবি|photo|ছিঁ/i.test(row)),
-  ];
-  const hits = [...new Set(cores.map((row) => normalizeMatch(stripInflection(row))).filter((row) => row.length >= 3))]
-    .filter((term) => hay.includes(term));
-  if (hits.length >= 3) return 0.88;
-  if (hits.length >= 2) return 0.74;
+    ...entities.organizations,
+    ...entities.institutions.filter((row) => !/^(ঢাকা|Dhaka)$/i.test(row)),
+    ...entities.events.filter((row) => row.length >= 3),
+    ...entities.topic,
+    ...entities.phrases.slice(0, 2),
+  ]);
+}
+
+function coreSameEventBoost(entities: DiscoveryEntities, hay: string, tokens: Set<string>, tokenOverlap: number) {
+  const cores = coreConcepts(entities);
+  const hits = cores.filter((group) => group.some((term) => termMatchesHay(term, hay, tokens)));
+  const personHit = conceptGroups(entities.people).some((group) => group.some((term) => termMatchesHay(term, hay, tokens)));
+  const orgHit = conceptGroups([...entities.organizations, ...entities.institutions]).some((group) =>
+    group.some((term) => termMatchesHay(term, hay, tokens)),
+  );
+  const eventHit = eventScore(entities.events, hay, tokens) >= 0.8;
+  const phraseHit = phraseScore(entities.phrases, hay) === 1;
+
+  if (hits.length >= 3 || (personHit && orgHit && eventHit)) return 0.9;
+  if ((personHit && (orgHit || eventHit || phraseHit)) || hits.length >= 2) return 0.82;
+  if ((orgHit && eventHit) || (phraseHit && tokenOverlap >= 0.45)) return 0.74;
+  if (tokenOverlap >= 0.6 && (personHit || orgHit)) return 0.7;
   return 0;
 }
 
@@ -87,26 +115,27 @@ export function scoreDiscoveryHit(input: {
   entities: DiscoveryEntities;
 }): number {
   const hay = hayOf(input.title, input.snippet);
+  const tokens = hayTokenSet(input.title, input.snippet);
   const phrase = phraseScore(input.entities.phrases, hay);
-  const people = matchRate(input.entities.people, hay);
-  const orgs = matchRate([...input.entities.organizations, ...input.entities.institutions], hay);
-  const places = matchRate(input.entities.locations, hay);
-  const event = eventScore(input.entities.events, hay);
-  const tokens = tokenRecall(input.storyTitle, input.title);
+  const people = conceptRate(input.entities.people, hay, tokens);
+  const orgs = conceptRate([...input.entities.organizations, ...input.entities.institutions], hay, tokens);
+  const places = conceptRate(input.entities.locations, hay, tokens);
+  const event = eventScore(input.entities.events, hay, tokens);
+  const overlap = tokenRecall(input.storyTitle, input.title);
   const recent = recencyScore(input.publishedAt);
   const trusted = isTrustedDiscoveryDomain(input.domain || input.url) ? 1 : 0;
 
   const raw =
-    0.2 * phrase +
+    0.22 * phrase +
     0.2 * people +
     0.16 * orgs +
     0.14 * event +
-    0.12 * tokens +
+    0.12 * overlap +
     0.08 * recent +
-    0.06 * places +
-    0.04 * trusted;
+    0.05 * places +
+    0.03 * trusted;
 
-  const floor = coreSameEventBoost(input.entities, hay);
+  const floor = coreSameEventBoost(input.entities, hay, tokens, overlap);
   return Math.max(0, Math.min(1, Number(Math.max(raw, floor).toFixed(3))));
 }
 
@@ -141,8 +170,7 @@ export function titleSimilarity(a: string, b: string) {
 
 export function developmentKey(title: string) {
   const hay = hayOf(title);
-  const keys = ["ছিঁড়", "ছিড়", "ফেল", "ব্যবস্থা", "নিন্দা", "প্রতিবাদ", "সংস্কার", "দাবি", "অপসারণ", "প্রদর্শন", "কর্তৃপক্ষ", "বক্তব্য"];
-  return keys.filter((key) => hay.includes(normalizeMatch(key))).join("|");
+  return DEVELOPMENT_MARKERS.filter((key) => hay.includes(normalizeMatch(key))).join("|");
 }
 
 export function flattenEntities(entities: DiscoveryEntities) {
