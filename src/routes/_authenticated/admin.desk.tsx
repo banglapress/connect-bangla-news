@@ -85,11 +85,7 @@ function DeskPage() {
           <Link to="/admin" className="px-3 py-2 text-primary hover:underline">মুখ্য প্যানেল</Link>
         </div>
       </div>
-
-      {summary ? <p className="mb-4 border border-border p-3 text-sm">{summary}</p> : (
-        <p className="mb-4 text-sm text-muted-foreground">প্রথম Run লুকব্যাক ওয়িন্ডো নেয়। পরের Run-এ শুধু নতুন URL/তারিখ নেয়।</p>
-      )}
-
+      {summary ? <p className="mb-4 border border-border p-3 text-sm">{summary}</p> : <p className="mb-4 text-sm text-muted-foreground">শিরোনামে ক্লিক করে রিসার্চ ডিটেইল খুলুন।</p>}
       {stories.isError ? (
         <p className="text-sm text-destructive">{stories.error instanceof Error ? stories.error.message : "স্টোরি পড়া যায়নি"}</p>
       ) : stories.isLoading ? (
@@ -100,7 +96,7 @@ function DeskPage() {
             <div key={row.id} className="p-3 text-sm">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="border border-border px-2 py-0.5 text-xs">{LABELS[row.status] ?? row.status}</span>
-                <span className="flex-1 font-medium">{row.title_hint || "শিরোনামহীন"}</span>
+                <a href={`/admin/desk/${row.id}`} className="flex-1 font-medium hover:text-primary">{row.title_hint || "শিরোনামহীন"}</a>
                 <span className="text-xs text-muted-foreground">{row.source_count} সোর্স</span>
               </div>
               {row.warning ? <p className="mt-1 text-xs text-destructive">{row.warning}</p> : null}
@@ -113,7 +109,6 @@ function DeskPage() {
           ))}
         </div>
       )}
-
       <h2 className="section-rule mt-8 pb-1 font-serif text-lg font-bold">ইনজেস্ট লগ</h2>
       <div className="mt-3 divide-y divide-border border border-border text-xs">
         {(jobs.data ?? []).map((job: any) => (
