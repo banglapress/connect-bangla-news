@@ -2,18 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
-import { getArticleProvider, validateGeneratedArticle } from "@/lib/desk/ai";
-import type { ResearchPacket, SourcePacket, StructuredResearch } from "@/lib/desk/ai";
+import { getArticleProvider, parseArticleDepth, validateGeneratedArticle } from "@/lib/desk/ai";
+import type { ResearchPacket, StructuredResearch } from "@/lib/desk/ai";
+import { toSourcePackets } from "@/lib/desk/research.functions";
 import { makePublicId } from "@/lib/ids";
 import { slugifyBangla } from "@/lib/bangla";
-
-function hostnameOf(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
 
 function structuredFrom(packet: any): StructuredResearch | ResearchPacket | null {
   if (!packet) return null;
@@ -24,7 +17,14 @@ function structuredFrom(packet: any): StructuredResearch | ResearchPacket | null
 
 export const generateDeskArticle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        depth: z.enum(["brief", "standard", "detailed", "comprehensive"]).optional(),
+      })
+      .parse(data),
+  )
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
     const supabase = context.supabase;
@@ -39,24 +39,18 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
 
     const names = await supabase.from("news_sources").select("id, name");
     const nameById = new Map((names.data ?? []).map((row: { id: string; name: string }) => [row.id, row.name]));
-    const sources: SourcePacket[] = rows.map((row: any) => ({
-      sourceRowId: row.id,
-      sourceId: row.source_id,
-      sourceName: nameById.get(row.source_id) || hostnameOf(row.url) || "Source",
-      title: row.title || "",
-      url: row.url,
-      excerpt: row.excerpt || row.raw_text || "",
-      publishedAt: row.published_at || null,
-      origin: row.origin || null,
-      trusted: row.trusted === true,
-      domain: hostnameOf(row.url),
-    }));
+    const sources = toSourcePackets(rows, nameById);
+    const depth = parseArticleDepth(data.depth || story.article_depth || "standard");
 
-    await supabase.from("desk_stories").update({
-      article_status: "generating",
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    }).eq("id", data.id);
+    await supabase
+      .from("desk_stories")
+      .update({
+        article_status: "generating",
+        article_depth: depth,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.id);
 
     const provider = getArticleProvider();
     try {
@@ -65,14 +59,19 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         categorySlug: story.category_slug || "national",
         research: packet,
         sources,
+        depth,
       });
+      const utilization = (packet as StructuredResearch).source_utilization || story.source_utilization || [];
       const checked = validateGeneratedArticle({
         article: drafted,
         research: packet,
         sources,
+        utilization,
+        depth,
       });
       drafted.article_status = checked.article_status;
       drafted.warnings = checked.warnings;
+      drafted.depth = depth;
 
       const payload = {
         title: drafted.title,
@@ -99,15 +98,18 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
       if (articleId) {
         const existing = await supabase.from("articles").select("id, status").eq("id", articleId).maybeSingle();
         if (existing.data) {
-          const update = await supabase.from("articles").update({
-            title: payload.title,
-            slug: payload.slug,
-            excerpt: payload.excerpt,
-            body: payload.body,
-            category_slug: payload.category_slug,
-            tags: payload.tags,
-            status: "draft",
-          }).eq("id", articleId);
+          const update = await supabase
+            .from("articles")
+            .update({
+              title: payload.title,
+              slug: payload.slug,
+              excerpt: payload.excerpt,
+              body: payload.body,
+              category_slug: payload.category_slug,
+              tags: payload.tags,
+              status: "draft",
+            })
+            .eq("id", articleId);
           if (update.error) throw new Error(update.error.message);
         } else {
           articleId = null;
@@ -140,13 +142,19 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         last_error: null,
         updated_at: new Date().toISOString(),
       };
-      const savedStory = await supabase.from("desk_stories").update({
-        ...storyCore,
-        article_status: drafted.article_status,
-        article_model: drafted.model,
-        article_generated_at: drafted.generatedAt,
-        article_warnings: drafted.warnings,
-      }).eq("id", data.id);
+      const savedStory = await supabase
+        .from("desk_stories")
+        .update({
+          ...storyCore,
+          article_status: drafted.article_status,
+          article_model: drafted.model,
+          article_generated_at: drafted.generatedAt,
+          article_warnings: drafted.warnings,
+          article_depth: depth,
+          article_word_count: checked.metrics?.article_word_count || drafted.word_count || 0,
+          article_quality: checked.metrics || null,
+        })
+        .eq("id", data.id);
       if (savedStory.error && /column|schema cache|article_/i.test(savedStory.error.message)) {
         const fallback = await supabase.from("desk_stories").update(storyCore).eq("id", data.id);
         if (fallback.error) throw new Error(fallback.error.message);
@@ -163,9 +171,13 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
           model: drafted.model,
           articleId,
           article_status: drafted.article_status,
+          depth,
+          wordCount: checked.metrics?.article_word_count || drafted.word_count || 0,
+          truncated: false,
           inputTokens: drafted.usage?.inputTokens ?? null,
           outputTokens: drafted.usage?.outputTokens ?? null,
           durationMs: drafted.usage?.durationMs ?? null,
+          warningCount: drafted.warnings.length,
         },
         finished_at: new Date().toISOString(),
       });
@@ -178,6 +190,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         validation: checked,
         provider: drafted.provider,
         model: drafted.model,
+        depth,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Article generation failed";
@@ -191,7 +204,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         stage: "article",
         status: "failed",
         error: message,
-        payload: { provider: "gemini" },
+        payload: { provider: "gemini", depth },
         finished_at: new Date().toISOString(),
       });
       throw new Error(message);

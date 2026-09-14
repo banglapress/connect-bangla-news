@@ -92,13 +92,17 @@ function extractBlocks(xml: string, tagName: string) {
   return blocks;
 }
 
+const FEED_TEXT_LIMIT = 8000;
+
 export function parseFeed(xml: string): RssItem[] {
   const chunks = [...extractBlocks(xml, "item"), ...extractBlocks(xml, "entry")];
   return chunks
     .map((block) => {
       const title = tag(block, ["title"]);
       const url = firstUrl(block);
-      const excerpt = tag(block, ["description", "summary", "content:encoded", "content"]);
+      const encoded = tag(block, ["content:encoded", "content"]);
+      const summary = tag(block, ["description", "summary"]);
+      const excerpt = (encoded.length >= summary.length ? encoded : summary).slice(0, FEED_TEXT_LIMIT);
       const published = tag(block, ["pubDate", "published", "updated", "dc:date"]);
       let publishedAt: string | null = null;
       if (published) {
@@ -108,7 +112,7 @@ export function parseFeed(xml: string): RssItem[] {
       return {
         title: title || url,
         url,
-        excerpt: excerpt.slice(0, 600),
+        excerpt,
         publishedAt,
         imageUrl: imageFrom(block),
       };
