@@ -49,6 +49,7 @@ export async function renderConnectCard(input: {
   template: CardTemplate;
   copy: CardCopy;
   ratio: CardRatio;
+  requirePhoto?: boolean;
 }): Promise<string> {
   const { width, height } = cardSize(input.ratio);
   const canvas = document.createElement("canvas");
@@ -76,7 +77,8 @@ export async function renderConnectCard(input: {
     ctx.clip();
     drawCover(ctx, photo, 0, imageTop, width, imageHeight);
     ctx.restore();
-  } catch {
+  } catch (err) {
+    if (input.requirePhoto) throw err instanceof Error ? err : new Error("Could not load card image");
     ctx.fillStyle = "#2A211C";
     ctx.fillRect(0, imageTop, width, imageHeight);
   }
@@ -114,7 +116,7 @@ export async function renderConnectCard(input: {
   const textY = imageTop + imageHeight + 46;
   ctx.fillStyle = input.template.accent;
   ctx.font = '700 26px "Hind Siliguri", sans-serif';
-  const meta = [input.copy.category, input.copy.dateLabel].filter(Boolean).join("  ·  ");
+  const meta = [input.copy.category, input.copy.dateLabel].filter(Boolean).join("  \u00b7  ");
   ctx.fillText(meta, pad, textY);
 
   ctx.fillStyle = input.template.text;
