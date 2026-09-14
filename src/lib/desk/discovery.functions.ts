@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
-import { getDiscoveryProvider } from "@/lib/desk/discovery";
+import { searchGdelt } from "@/lib/desk/discovery";
 import { canonicalizeUrl } from "@/lib/desk/url";
 
 export const findRelatedCoverage = createServerFn({ method: "POST" })
@@ -14,27 +14,39 @@ export const findRelatedCoverage = createServerFn({ method: "POST" })
     if (!story.data) throw new Error("Story not found");
     const links = await context.supabase.from("desk_story_sources").select("url").eq("story_id", data.storyId);
     const urls = (links.data ?? []).map((row: { url: string }) => row.url);
-    const hits = await getDiscoveryProvider().searchRelated({ title: story.data.title_hint || "", urls });
-    for (const hit of hits) {
-      await context.supabase.from("desk_discovery_hits").insert({
-        story_id: data.storyId,
-        provider: hit.provider,
-        title: hit.title,
-        url: hit.url,
-        domain: hit.domain,
-        published_at: hit.publishedAt,
-        relevance: hit.relevance,
-        raw: hit,
-      });
+    const result = await searchGdelt(story.data.title_hint || "", urls);
+    let persistError: string | null = null;
+    try {
+      for (const hit of result.hits.slice(0, 15)) {
+        const saved = await context.supabase.from("desk_discovery_hits").insert({
+          story_id: data.storyId,
+          provider: hit.provider,
+          title: hit.title,
+          url: hit.url,
+          domain: hit.domain,
+          published_at: hit.publishedAt,
+          relevance: hit.relevance,
+          raw: hit,
+        });
+        if (saved.error) persistError = saved.error.message;
+      }
+    } catch (err) {
+      persistError = err instanceof Error ? err.message : "Could not store discovery hits";
     }
     await context.supabase.from("desk_jobs").insert({
       story_id: data.storyId,
       stage: "discovery",
-      status: "ok",
-      payload: { provider: "gdelt", count: hits.length },
+      status: result.diagnostics.some((row) => row.error) ? "failed" : "ok",
+      error: result.diagnostics.find((row) => row.error)?.error ?? persistError,
+      payload: { provider: "gdelt", count: result.hits.length, diagnostics: result.diagnostics },
       finished_at: new Date().toISOString(),
     });
-    return { hits, provider: "gdelt" };
+    return {
+      hits: result.hits,
+      provider: "gdelt",
+      diagnostics: result.diagnostics,
+      persistError,
+    };
   });
 
 export const addCoverageToStory = createServerFn({ method: "POST" })
