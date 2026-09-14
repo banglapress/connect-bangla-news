@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { ARTICLE_JSON_SCHEMA, RESEARCH_JSON_SCHEMA } from "./schemas";
 import { slugifyBangla } from "@/lib/bangla";
+import { DEPTH_TARGETS, countWords, packDossierForPrompt, parseArticleDepth } from "./quality";
 
 export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 
@@ -47,7 +48,7 @@ type GeminiCallResult = {
   model: string;
 };
 
-async function generateJson(prompt: string, schema: Record<string, unknown>): Promise<GeminiCallResult> {
+async function generateJson(prompt: string, schema: Record<string, unknown>, timeoutMs = 75000): Promise<GeminiCallResult> {
   const apiKey = readGeminiKey();
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
   const model = readGeminiModel();
@@ -61,7 +62,7 @@ async function generateJson(prompt: string, schema: Record<string, unknown>): Pr
     },
   };
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(endpoint(model), {
       method: "POST",
@@ -99,7 +100,7 @@ async function generateJson(prompt: string, schema: Record<string, unknown>): Pr
     };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error("Gemini request timed out (45s)");
+      throw new Error("Gemini request timed out");
     }
     throw err;
   } finally {
@@ -110,17 +111,18 @@ async function generateJson(prompt: string, schema: Record<string, unknown>): Pr
 function sourceBlock(sources: SourcePacket[]) {
   return sources
     .map((source, index) => {
-      const lines = [
+      const text = source.availableText || source.excerpt || "";
+      return [
         `[S${index + 1}] id=${source.sourceRowId}`,
         `publisher=${source.sourceName}`,
         `url=${source.url}`,
         `published=${source.publishedAt || "unknown"}`,
         `origin=${source.origin || "unknown"}`,
         `trusted=${source.trusted === true ? "true" : "false"}`,
+        `content_level=${source.contentLevel || "metadata_only"}`,
         `title=${source.title || ""}`,
-        `excerpt=${(source.excerpt || "").slice(0, 900)}`,
-      ];
-      return lines.join("\n");
+        text ? `available_text=${text.slice(0, 2500)}` : "available_text=",
+      ].join("\n");
     })
     .join("\n\n");
 }
@@ -137,10 +139,27 @@ function normalizeResearch(raw: any, input: ResearchInput, meta: GeminiCallResul
     published_at: source.publishedAt,
     origin: source.origin || "unknown",
     trusted: source.trusted === true,
+    content_level: source.contentLevel,
   }));
+  const warnings = asArray(raw.warnings);
+  if (input.truncated) {
+    warnings.push({
+      code: "truncated",
+      message: "⚠ Source notes were truncated to fit the model context. Unique facts and quotes were kept first.",
+    });
+  }
+  if (input.sources.every((source) => source.contentLevel === "metadata_only")) {
+    warnings.push({
+      code: "limited_content",
+      message: "⚠ Only titles/snippets were available. Do not claim full articles were read.",
+    });
+  }
   return {
-    summary: String(raw.summary || "").trim(),
+    summary: String(raw.summary || raw.what_happened || raw.executive_summary || "").trim(),
+    executive_summary: String(raw.executive_summary || raw.summary || "").trim(),
+    what_happened: String(raw.what_happened || raw.summary || "").trim(),
     key_facts: asArray(raw.key_facts),
+    detailed_facts: asArray(raw.detailed_facts).length ? asArray(raw.detailed_facts) : asArray(raw.key_facts),
     timeline: asArray(raw.timeline),
     people: asArray(raw.people),
     organizations: asArray(raw.organizations),
@@ -150,8 +169,15 @@ function normalizeResearch(raw: any, input: ResearchInput, meta: GeminiCallResul
     source_conflicts: asArray(raw.source_conflicts),
     unverified_claims: asArray(raw.unverified_claims),
     important_quotes: asArray(raw.important_quotes),
+    attributed_statements: asArray(raw.attributed_statements),
+    reactions: asArray(raw.reactions),
+    background: asArray(raw.background),
+    previous_developments: asArray(raw.previous_developments),
+    consequences: asArray(raw.consequences),
+    unique_details: asArray(raw.unique_details),
+    missing_information: asArray(raw.missing_information),
     source_links: sourceLinks,
-    warnings: asArray(raw.warnings),
+    warnings,
     quality: "gemini",
     provider: "gemini",
     model: meta.model,
@@ -161,6 +187,8 @@ function normalizeResearch(raw: any, input: ResearchInput, meta: GeminiCallResul
       outputTokens: meta.outputTokens,
       durationMs: meta.durationMs,
     },
+    truncated: input.truncated === true,
+    version: 2,
   };
 }
 
@@ -173,12 +201,12 @@ export const geminiProvider: AIProvider = {
     return Boolean(readGeminiKey());
   },
   async extractClaims(source: SourcePacket): Promise<ExtractedClaim[]> {
-    const text = [source.title, source.excerpt].filter(Boolean).join(". ");
+    const text = [source.title, source.availableText || source.excerpt].filter(Boolean).join(". ");
     const parts = text
       .split(/[\u0964.!?\n]+/)
       .map((part) => part.replace(/\s+/g, " ").trim())
       .filter((part) => part.length >= 12);
-    return parts.slice(0, 8).map((part) => ({ text: part, type: "general" as const }));
+    return parts.slice(0, 12).map((part) => ({ text: part, type: "general" as const }));
   },
   async summarizeTopic(sources: SourcePacket[]) {
     return sources.map((row) => row.title).filter(Boolean)[0] || "";
@@ -186,31 +214,27 @@ export const geminiProvider: AIProvider = {
   async generateResearch(input: ResearchInput): Promise<StructuredResearch> {
     const prompt = [
       "You are a Bangladesh newsroom researcher for The Connect.",
-      "Analyze ONLY the supplied source titles, excerpts, times and URLs.",
-      "Write factual notes in clear Bangladesh Bangla (bn-BD). Do not use India-Bengali wording.",
-      "Do not invent people, dates, numbers, quotes or events.",
-      "If a field cannot be supported by the sources, leave it empty.",
-      "\"Two sources agree\" means multi-source supported. It does NOT mean verified true.",
-      "Use support=multi_source only when at least two listed sources report the same fact.",
-      "Use support=single_source for claims that appear in only one source.",
-      "Use support=conflicting when sources disagree.",
-      "Use support=unverified when the claim is thin, second-hand, or needs a check.",
+      "Build one master research dossier from the selected sources.",
+      "Use ONLY the supplied titles, feed text, snippets, times and URLs.",
+      "Do not invent people, dates, numbers, quotes, reactions, background or consequences.",
+      "If a section cannot be supported, return an empty array or empty string.",
+      "Write notes in clear Bangladesh Bangla (bn-BD). No India-Bengali wording.",
+      "content_level=full means long feed/stored text was available to the app, not that a paywalled webpage was scraped.",
+      "content_level=partial means excerpt/snippet. content_level=metadata_only means title/URL only.",
+      "Never claim the full publisher page was read unless available_text is substantial.",
+      "multi_source means two listed sources report the same fact. It does NOT mean independently verified.",
+      "If two outlets appear to repeat one original claim, prefer single_source or unverified rather than multi_source.",
+      "Keep unique source details. Do not drop a relevant unique fact only because one outlet reported it.",
       "Attribute every item with source_ids (the id= values) and source_urls.",
-      "Do not treat Google News as a publisher. Use the named publisher and original URL.",
+      "Do not treat Google News as a publisher.",
       `Story title: ${input.title}`,
-      input.excerpt ? `Story excerpt: ${input.excerpt.slice(0, 800)}` : "",
-      input.existingClaims?.length
-        ? `Existing claims:\n${input.existingClaims.map((row) => `- ${row.text}`).join("\n")}`
-        : "",
-      input.existingFacts?.length
-        ? `Existing fact checks:\n${input.existingFacts.map((row) => `- ${row.status || "unknown"}: ${row.text}`).join("\n")}`
-        : "",
-      "SOURCES:",
-      sourceBlock(input.sources),
+      input.existingClaims?.length ? `Existing claims:\n${input.existingClaims.map((row) => `- ${row.text}`).join("\n")}` : "",
+      "SOURCE NOTES:",
+      input.sourceNotes || sourceBlock(input.sources),
     ]
       .filter(Boolean)
       .join("\n\n");
-    const result = await generateJson(prompt, RESEARCH_JSON_SCHEMA);
+    const result = await generateJson(prompt, RESEARCH_JSON_SCHEMA, 75000);
     const research = normalizeResearch(result.json, input, result);
     if (input.sources.length < 2) {
       research.warnings.push({
@@ -221,33 +245,44 @@ export const geminiProvider: AIProvider = {
     return research;
   },
   async generateArticle(input: ArticleInput): Promise<GeneratedArticle> {
-    const researchJson = JSON.stringify(input.research).slice(0, 14000);
+    const depth = parseArticleDepth(input.depth);
+    const target = DEPTH_TARGETS[depth];
+    const packed = packDossierForPrompt(input.research, 20000);
     const prompt = [
-      "You are a Bangladesh news writer for The Connect.",
-      "Write a completely original Bangla news article from the research packet only.",
-      "Style: বাংলাদেশের সংবাদভাষা. Clear short sentences. Neutral. Factual.",
-      "No India-Bengali wording. No fabricated facts. No exaggerated adjectives. No clickbait.",
-      "Do not copy or line-by-line paraphrase any source article.",
-      "Attribute statements to publishers where appropriate.",
-      "Structure the body as: lead, main events, later developments, brief background, attributed quotes, closing.",
+      "You are a newsroom writer for The Connect, not a summarizer.",
+      "Write a completely original Bangla news article from the research dossier only.",
+      "Style: বাংলাদেশের সংবাদভাষা. Short and medium sentences. Neutral. Factual. Restrained.",
+      "No India-Bengali wording. No fabricated facts. No clickbait. No filler.",
+      "Do not copy or line-by-line paraphrase any source.",
+      "Synthesize. Attribute only where needed. Do not write 'Source A says / Source B says' in every paragraph.",
+      "Answer only when source-supported: কী ঘটেছে, কখন, কোথায়, কারা জড়িত, কীভাবে, কেন গুরুত্বপূর্ণ, এর আগে কী হয়েছিল, কারা কী বলেছে, কী পরিবর্তন হলো.",
+      "Do not invent implications or predictions.",
+      "Do not repeat the lead. Do not add generic background. Do not fabricate quotes.",
+      "Preserve quote meaning exactly and name the speaker. Do not merge speakers.",
+      "If numbers, dates or names conflict, keep both sides and set article_status to needs_review.",
+      "If source material is thin, write a shorter article. Never pad to hit a word count.",
+      `Article depth mode: ${depth}. Target range ${target.min}-${target.max} words only if the dossier supports it.`,
+      "Choose a structure that fits the story: breaking, developing, human-interest or explanatory.",
       "Separate paragraphs with a blank line.",
-      "If facts conflict or important claims are single-source, set article_status to needs_review and add warnings.",
-      "If sources are too thin to write a responsible article, set article_status to failed and keep body short.",
       `Preferred category slug: ${input.categorySlug || "national"}`,
       `Story title hint: ${input.title}`,
-      "RESEARCH PACKET JSON:",
-      researchJson,
+      packed.truncated ? "NOTE: dossier was truncated. Prefer unique facts, quotes, chronology." : "",
+      "RESEARCH DOSSIER JSON:",
+      packed.packed,
       "SOURCE LIST:",
       sourceBlock(input.sources),
-    ].join("\n\n");
-    const result = await generateJson(prompt, ARTICLE_JSON_SCHEMA);
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const result = await generateJson(prompt, ARTICLE_JSON_SCHEMA, 75000);
     const raw = result.json || {};
     const title = String(raw.title || input.title || "").trim();
+    const body = String(raw.body || "").trim();
     return {
       title,
       slug: slugifyBangla(title || "khobor"),
       excerpt: String(raw.excerpt || "").trim(),
-      body: String(raw.body || "").trim(),
+      body,
       seo_title: String(raw.seo_title || title).trim(),
       meta_description: String(raw.meta_description || raw.excerpt || "").trim(),
       tags: asArray<string>(raw.tags).map((tag) => String(tag).trim()).filter(Boolean).slice(0, 8),
@@ -262,6 +297,8 @@ export const geminiProvider: AIProvider = {
         outputTokens: result.outputTokens,
         durationMs: result.durationMs,
       },
+      depth,
+      word_count: countWords(body),
     };
   },
 };
