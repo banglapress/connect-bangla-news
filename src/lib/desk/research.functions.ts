@@ -55,6 +55,8 @@ export const prepareResearch = createServerFn({ method: "POST" })
         excerpt: row.excerpt || row.raw_text || "",
         publishedAt: row.published_at,
       }));
+      await supabase.from("desk_source_claims").delete().eq("story_id", data.id);
+      await supabase.from("desk_fact_checks").delete().eq("story_id", data.id);
       const provider = getAIProvider();
       const extracted = [];
       for (const source of sources) {
@@ -83,7 +85,6 @@ export const prepareResearch = createServerFn({ method: "POST" })
         }
       }
 
-      await supabase.from("desk_fact_checks").delete().eq("story_id", data.id);
       const facts = [];
       for (const group of groups) {
         const status = group.sources.length >= 2 ? "confirmed" : "unverified";
