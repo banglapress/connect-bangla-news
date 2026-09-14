@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { getDeskStoryDetail, prepareResearch } from "@/lib/desk/research.functions";
+import { getDeskStoryDetail, prepareResearch, saveDeskArticleDepth } from "@/lib/desk/research.functions";
 import { generateDeskArticle } from "@/lib/desk/article.functions";
 import { addCoverageToStory, findRelatedCoverage, setDiscoveryHitStatus } from "@/lib/desk/discovery.functions";
 import { DeskSocialPanel } from "@/components/desk-social-panel";
@@ -39,6 +39,7 @@ function StoryDetailPage() {
   const load = useServerFn(getDeskStoryDetail);
   const research = useServerFn(prepareResearch);
   const writeArticle = useServerFn(generateDeskArticle);
+  const saveDepth = useServerFn(saveDeskArticleDepth);
   const discover = useServerFn(findRelatedCoverage);
   const addHit = useServerFn(addCoverageToStory);
   const setStatus = useServerFn(setDiscoveryHitStatus);
@@ -46,6 +47,8 @@ function StoryDetailPage() {
   const [diagnostics, setDiagnostics] = useState<any[] | null>(null);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [depth, setDepth] = useState<"brief" | "standard" | "detailed" | "comprehensive">("standard");
+  const [depthTouched, setDepthTouched] = useState(false);
   const valid = UUID.test(id);
   const detail = useQuery({
     queryKey: ["desk-story", id],
@@ -75,6 +78,12 @@ function StoryDetailPage() {
   const structured = packet?.structured || (packet?.key_facts ? packet : null);
   const articleWarnings = Array.isArray(story.article_warnings) ? story.article_warnings : packet?.warnings || [];
   const researchWarnings = structured?.warnings || packet?.warnings || [];
+  const utilization = Array.isArray(story.source_utilization)
+    ? story.source_utilization
+    : structured?.source_utilization || [];
+  const researchQuality = story.research_quality || null;
+  const articleQuality = story.article_quality || null;
+  const selectedDepth = (depthTouched ? depth : story.article_depth || depth) as typeof depth;
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["desk-story", id] });
@@ -138,7 +147,7 @@ function StoryDetailPage() {
           <button type="button" disabled={busy} onClick={async () => {
             setBusy(true);
             try {
-              const out = await writeArticle({ data: { id } });
+              const out = await writeArticle({ data: { id, depth: selectedDepth } });
               toast.success(out.article.article_status === "needs_review" ? "Draft saved \u00b7 needs review" : "Draft saved \u00b7 " + out.provider);
               await refresh();
             } catch (err) {
@@ -174,15 +183,68 @@ function StoryDetailPage() {
 
       <section className="mb-8 border border-border p-4 text-sm">
         <h2 className="font-serif text-lg font-bold">AI Article</h2>
-        <p className="mt-2 text-xs text-muted-foreground">Gemini research and original Bangla draft. Saved as draft only. Never auto-published.</p>
+        <p className="mt-2 text-xs text-muted-foreground">One Gemini research call, then one article call from the stored dossier. Draft only. Never auto-published. Longer only when sources support it.</p>
+        <div className="mt-3">
+          <p className="text-xs font-medium">Article depth</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {(["brief", "standard", "detailed", "comprehensive"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={selectedDepth === option ? "bg-primary px-3 py-1 text-primary-foreground" : "border border-border px-3 py-1"}
+                disabled={busy}
+                onClick={async () => {
+                  setDepth(option);
+                  setDepthTouched(true);
+                  try {
+                    await saveDepth({ data: { id, depth: option } });
+                  } catch {
+                    /* column may not exist until migration 009 */
+                  }
+                }}
+              >
+                {option === "brief" ? "Brief" : option === "standard" ? "Standard" : option === "detailed" ? "Detailed" : "Comprehensive"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Targets only. Thin sources stay short. Changing depth regenerates the article from stored research, not a new research call.</p>
+        </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 text-xs">
           <p>Provider: {story.research_provider || packet?.provider || "not run"}</p>
           <p>Model: {story.article_model || story.research_model || packet?.model || "—"}</p>
-          <p>Research status: {story.research_status || "pending"}{packet?.quality ? ` \u00b7 ${packet.quality}` : ""}</p>
+          <p>Research status: {story.research_status || "pending"}{packet?.quality ? ` \u00b7 ${packet.quality}` : ""}{structured?.version ? ` \u00b7 v${structured.version}` : ""}</p>
           <p>Article status: {story.article_status || "not generated"}</p>
-          <p>Sources: {sources.length}</p>
+          <p>Sources: {sources.length} \u00b7 usable content: {utilization.filter((row: any) => row.available_content_level !== "metadata_only").length}</p>
+          <p>Word count: {articleQuality?.article_word_count || story.article_word_count || (story.draft_body ? String(story.draft_body).trim().split(/\s+/).length : "—")}</p>
           <p>Generated: {story.article_generated_at ? formatBanglaDateTime(story.article_generated_at) : story.research_generated_at ? formatBanglaDateTime(story.research_generated_at) : "—"}</p>
+          <p>Depth: {selectedDepth}</p>
         </div>
+        {utilization.length ? (
+          <div className="mt-4 border border-border p-3">
+            <p className="font-medium">Source Utilization</p>
+            <div className="mt-2 space-y-2 text-xs">
+              {utilization.map((row: any) => (
+                <div key={row.source_row_id || row.url}>
+                  <p className="font-medium">{row.name || row.url}</p>
+                  <p className="text-muted-foreground">
+                    content: {row.available_content_level || "metadata_only"}
+                    {` \u00b7 facts extracted: ${row.facts_extracted ?? 0}`}
+                    {` \u00b7 unique details: ${row.unique_facts ?? 0}`}
+                    {` \u00b7 quotes: ${row.quotes_extracted ?? 0}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {researchQuality ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 text-xs">
+            <p>Research facts: {researchQuality.facts ?? "—"}</p>
+            <p>Unique details: {researchQuality.unique_details ?? "—"}</p>
+            <p>Quotes: {researchQuality.quotes ?? "—"}</p>
+            <p>Conflicts: {researchQuality.conflicts ?? "—"}</p>
+          </div>
+        ) : null}
         {researchWarnings.length || articleWarnings.length ? (
           <div className="mt-3 space-y-1 border border-border bg-secondary/40 p-3">
             {[...researchWarnings, ...articleWarnings].map((row: any, index: number) => (
@@ -274,9 +336,17 @@ function StoryDetailPage() {
         <h2 className="font-serif text-lg font-bold">Story Cluster</h2>
         <p className="mt-2">Sources: {sources.length} \u00b7 Research: {story.research_status || "pending"}</p>
         <ul className="mt-3 list-disc space-y-1 pl-5">
-          {sources.map((src: any) => (
-            <li key={src.id}><a className="text-primary hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title || src.url}</a></li>
-          ))}
+          {sources.map((src: any) => {
+            const util = utilization.find((row: any) => row.source_row_id === src.id);
+            const chars = String(src.raw_text || src.excerpt || "").trim().length;
+            const level = util?.available_content_level || (chars >= 1500 ? "full" : chars >= 220 ? "partial" : "metadata_only");
+            return (
+              <li key={src.id}>
+                <a className="text-primary hover:underline" href={src.url} target="_blank" rel="noreferrer">{src.title || src.url}</a>
+                <span className="text-xs text-muted-foreground"> \u00b7 {level === "full" ? "Full content available" : level === "partial" ? "Partial content" : "Metadata only"}</span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -309,7 +379,26 @@ function StoryDetailPage() {
         <section className="border border-border p-4 text-sm">
           <h2 className="font-serif text-lg font-bold">Research Packet</h2>
           <p className="mt-1 text-xs text-muted-foreground">{packet.provider}{packet.model ? ` \u00b7 ${packet.model}` : ""}{packet.quality ? ` \u00b7 ${packet.quality}` : ""}</p>
-          <p className="mt-2"><strong>What happened:</strong> {packet.whatHappened || structured?.summary}</p>
+          <p className="mt-2"><strong>Executive summary:</strong> {structured?.executive_summary || packet.whatHappened || structured?.summary}</p>
+          <p className="mt-2"><strong>What happened:</strong> {structured?.what_happened || packet.whatHappened || structured?.summary}</p>
+          {structured?.unique_details?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">Unique source details</p>
+              <ul className="mt-1 list-disc pl-5">{structured.unique_details.map((row: any) => <li key={row.text}>{row.text}</li>)}</ul>
+            </div>
+          ) : null}
+          {structured?.important_quotes?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">Direct quotes</p>
+              <ul className="mt-1 list-disc pl-5">{structured.important_quotes.map((row: any) => <li key={row.quote}>{row.speaker ? `${row.speaker}: ` : ""}“{row.quote}”</li>)}</ul>
+            </div>
+          ) : null}
+          {structured?.timeline?.length ? (
+            <div className="mt-3">
+              <p className="font-medium">Chronology</p>
+              <ul className="mt-1 list-disc pl-5">{structured.timeline.map((row: any) => <li key={`${row.time}-${row.text}`}>{row.time ? `${row.time} — ` : ""}{row.text}</li>)}</ul>
+            </div>
+          ) : null}
           {packet.keyFacts?.length ? (
             <div className="mt-3">
               <p className="font-medium">Multi-source supported (not automatically verified)</p>
