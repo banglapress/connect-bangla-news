@@ -43,9 +43,10 @@ function DeskPage() {
       const fetched = out.results.reduce((n, r) => n + r.fetched, 0);
       const inserted = out.results.reduce((n, r) => n + r.inserted, 0);
       const clustered = out.results.reduce((n, r) => n + r.clustered, 0);
-      const skipped = out.results.reduce((n, r) => n + r.skipped, 0);
+      const duplicates = out.results.reduce((n, r) => n + r.duplicates, 0);
+      const skippedOld = out.results.reduce((n, r) => n + r.skippedOld, 0);
       const errors = out.results.filter((r) => r.error);
-      const text = `Fetched ${fetched} · নতুন স্টোরি ${inserted} · ক্লাস্টার ${clustered} · ডুপ্লিকেট ${skipped}`;
+      const text = `Fetched ${fetched} · New ${inserted} · Duplicate ${duplicates} · Skipped (too old) ${skippedOld} · Clustered ${clustered} · Error ${errors.length}`;
       setSummary(text);
       toast.success(text);
       for (const row of errors) toast.error(`${row.sourceName}: ${row.error}`);
@@ -79,21 +80,20 @@ function DeskPage() {
           <button type="button" disabled={running} onClick={() => void runNow()} className="bg-primary px-5 py-2 font-medium text-primary-foreground disabled:opacity-60">
             {running ? "RSS আনা হচ্ছে…" : "Run Now"}
           </button>
-          <a href="/admin/desk/sources" className="border border-border px-3 py-2 hover:bg-secondary">সোর্স ম্যানেজার</a>
+          <a href="/admin/desk/sources" className="border border-border px-3 py-2 hover:bg-secondary">সোর্স</a>
+          <a href="/admin/desk/settings" className="border border-border px-3 py-2 hover:bg-secondary">সেটিংস</a>
           <Link to="/admin" className="px-3 py-2 text-primary hover:underline">মুখ্য প্যানেল</Link>
         </div>
       </div>
 
       {summary ? <p className="mb-4 border border-border p-3 text-sm">{summary}</p> : (
-        <p className="mb-4 text-sm text-muted-foreground">Run Now সার্ভারে সক্রিয় RSS ফিড পড়বে। ব্রাউজার থেকে RSS যায় না।</p>
+        <p className="mb-4 text-sm text-muted-foreground">প্রথম Run লুকব্যাক ওয়িন্ডো নেয়। পরের Run-এ শুধু নতুন URL/তারিখ নেয়।</p>
       )}
 
       {stories.isError ? (
         <p className="text-sm text-destructive">{stories.error instanceof Error ? stories.error.message : "স্টোরি পড়া যায়নি"}</p>
       ) : stories.isLoading ? (
         <p className="text-muted-foreground">লোড হচ্ছে…</p>
-      ) : (stories.data ?? []).length === 0 ? (
-        <p className="border border-border p-6 text-sm text-muted-foreground">এখনো স্টোরি নেই। উপরে Run Now চাপুন।</p>
       ) : (
         <div className="divide-y divide-border border border-border">
           {(stories.data ?? []).map((row) => (
@@ -115,19 +115,15 @@ function DeskPage() {
       )}
 
       <h2 className="section-rule mt-8 pb-1 font-serif text-lg font-bold">ইনজেস্ট লগ</h2>
-      {(jobs.data ?? []).length === 0 ? (
-        <p className="text-sm text-muted-foreground">এখনো জব নেই।</p>
-      ) : (
-        <div className="mt-3 divide-y divide-border border border-border text-xs">
-          {(jobs.data ?? []).map((job: any) => (
-            <div key={job.id} className="flex flex-wrap gap-3 p-2">
-              <span className="uppercase">{job.status}</span>
-              <span className="flex-1">{job.payload?.sourceName || job.stage}{job.error ? ` · ${job.error}` : ""}</span>
-              <span className="text-muted-foreground">{formatBanglaDateTime(job.created_at)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-3 divide-y divide-border border border-border text-xs">
+        {(jobs.data ?? []).map((job: any) => (
+          <div key={job.id} className="flex flex-wrap gap-3 p-2">
+            <span className="uppercase">{job.status}</span>
+            <span className="flex-1">{job.payload?.sourceName || job.stage}{job.error ? ` · ${job.error}` : ""}</span>
+            <span className="text-muted-foreground">{formatBanglaDateTime(job.created_at)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
