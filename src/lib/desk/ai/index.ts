@@ -5,7 +5,6 @@ import type { AIProvider } from "./types";
 
 export function getAIProvider(): AIProvider {
   if (geminiProvider.isConfigured()) return geminiProvider;
-  if (openaiProvider.isConfigured()) return openaiProvider;
   return heuristicProvider;
 }
 
