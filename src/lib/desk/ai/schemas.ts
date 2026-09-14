@@ -10,12 +10,35 @@ const attributedItem = {
   additionalProperties: false,
 };
 
+const quoteItem = {
+  type: "object",
+  properties: {
+    quote: { type: "string" },
+    speaker: { type: "string" },
+    source_ids: { type: "array", items: { type: "string" } },
+    source_urls: { type: "array", items: { type: "string" } },
+  },
+  required: ["quote", "speaker", "source_ids", "source_urls"],
+  additionalProperties: false,
+};
+
 const warningItem = {
   type: "object",
   properties: {
     code: {
       type: "string",
-      enum: ["conflict", "single_source", "needs_verification", "insufficient_sources", "heuristic", "missing_attribution", "unsupported"],
+      enum: [
+        "conflict",
+        "single_source",
+        "needs_verification",
+        "insufficient_sources",
+        "heuristic",
+        "missing_attribution",
+        "unsupported",
+        "limited_content",
+        "repetition",
+        "truncated",
+      ],
     },
     message: { type: "string" },
   },
@@ -26,8 +49,11 @@ const warningItem = {
 export const RESEARCH_JSON_SCHEMA = {
   type: "object",
   properties: {
-    summary: { type: "string", description: "Neutral Bangla summary of what sources report. Empty if insufficient." },
+    executive_summary: { type: "string" },
+    what_happened: { type: "string" },
+    summary: { type: "string" },
     key_facts: { type: "array", items: attributedItem },
+    detailed_facts: { type: "array", items: attributedItem },
     timeline: {
       type: "array",
       items: {
@@ -72,25 +98,22 @@ export const RESEARCH_JSON_SCHEMA = {
       },
     },
     unverified_claims: { type: "array", items: attributedItem },
-    important_quotes: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          quote: { type: "string" },
-          speaker: { type: "string" },
-          source_ids: { type: "array", items: { type: "string" } },
-          source_urls: { type: "array", items: { type: "string" } },
-        },
-        required: ["quote", "speaker", "source_ids", "source_urls"],
-        additionalProperties: false,
-      },
-    },
+    important_quotes: { type: "array", items: quoteItem },
+    attributed_statements: { type: "array", items: quoteItem },
+    reactions: { type: "array", items: attributedItem },
+    background: { type: "array", items: attributedItem },
+    previous_developments: { type: "array", items: attributedItem },
+    consequences: { type: "array", items: attributedItem },
+    unique_details: { type: "array", items: attributedItem },
+    missing_information: { type: "array", items: attributedItem },
     warnings: { type: "array", items: warningItem },
   },
   required: [
+    "executive_summary",
+    "what_happened",
     "summary",
     "key_facts",
+    "detailed_facts",
     "timeline",
     "people",
     "organizations",
@@ -100,6 +123,13 @@ export const RESEARCH_JSON_SCHEMA = {
     "source_conflicts",
     "unverified_claims",
     "important_quotes",
+    "attributed_statements",
+    "reactions",
+    "background",
+    "previous_developments",
+    "consequences",
+    "unique_details",
+    "missing_information",
     "warnings",
   ],
   additionalProperties: false,
