@@ -14,10 +14,21 @@ export const Route = createFileRoute("/_authenticated/admin/desk/$id")({
   component: StoryDetailPage,
 });
 
-function scoreLabel(value: unknown) {
+function scoreValue(value: unknown) {
   const num = typeof value === "number" ? value : Number(value || 0);
-  if (!Number.isFinite(num)) return "—";
-  return `${Math.round(num * 100)}%`;
+  return Number.isFinite(num) ? num : 0;
+}
+
+function scoreLabel(value: unknown) {
+  return `${Math.round(scoreValue(value) * 100)}%`;
+}
+
+function bandLabel(value: unknown) {
+  const score = scoreValue(value);
+  if (score >= 0.7) return "Highly relevant";
+  if (score >= 0.5) return "Relevant";
+  if (score >= 0.3) return "Possible";
+  return "Low relevance";
 }
 
 function StoryDetailPage() {
@@ -42,8 +53,11 @@ function StoryDetailPage() {
 
   const hits = useMemo(() => {
     const rows = (detail.data as any)?.discoveryHits ?? [];
-    return Array.isArray(rows) ? rows : [];
+    const list = Array.isArray(rows) ? [...rows] : [];
+    return list.sort((a, b) => scoreValue(b.relevance) - scoreValue(a.relevance));
   }, [detail.data]);
+  const topHits = hits.slice(0, 8);
+  const moreHits = hits.slice(8);
 
   const selectedIds = Object.entries(selected).filter(([, on]) => on).map(([hitId]) => hitId);
 
@@ -162,7 +176,7 @@ function StoryDetailPage() {
           </div>
         </div>
         <div className="mt-3 divide-y divide-border">
-          {hits.length === 0 ? <p className="py-2 text-muted-foreground">No related coverage saved yet. Run Find Related Coverage.</p> : hits.map((hit: any) => (
+          {hits.length === 0 ? <p className="py-2 text-muted-foreground">No related coverage saved yet. Run Find Related Coverage.</p> : topHits.map((hit: any) => (
             <div key={hit.id || hit.url} className="flex flex-wrap items-start gap-3 py-3">
               <input type="checkbox" className="mt-1" checked={!!selected[hit.id]} onChange={(event) => setSelected((current) => ({ ...current, [hit.id]: event.target.checked }))} disabled={!hit.id || hit.status === "ignored"} />
               <div className="min-w-0 flex-1">
@@ -170,7 +184,8 @@ function StoryDetailPage() {
                 <p className="text-xs text-muted-foreground">
                   {hit.domain || "unknown source"}
                   {hit.published_at ? ` · ${formatBanglaDateTime(hit.published_at)}` : ""}
-                  {` · relevance ${scoreLabel(hit.relevance)}`}
+                  {` · ${scoreLabel(hit.relevance)} · `}
+                  <span className={scoreValue(hit.relevance) >= 0.7 ? "font-semibold text-foreground" : ""}>{bandLabel(hit.relevance)}</span>
                   {hit.status ? ` · ${hit.status}` : ""}
                   {hit.provider ? ` · ${hit.provider}` : ""}
                 </p>
@@ -185,6 +200,26 @@ function StoryDetailPage() {
             </div>
           ))}
         </div>
+          {moreHits.length ? (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-medium">More candidates ({moreHits.length})</summary>
+              <div className="mt-2 divide-y divide-border">
+                {moreHits.map((hit: any) => (
+                  <div key={`more-${hit.id || hit.url}`} className="flex flex-wrap items-start gap-3 py-3">
+                    <input type="checkbox" className="mt-1" checked={!!selected[hit.id]} onChange={(event) => setSelected((current) => ({ ...current, [hit.id]: event.target.checked }))} disabled={!hit.id || hit.status === "ignored"} />
+                    <div className="min-w-0 flex-1">
+                      <a href={hit.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">{hit.title}</a>
+                      <p className="text-xs text-muted-foreground">{hit.domain || "unknown source"}{` · ${scoreLabel(hit.relevance)} · ${bandLabel(hit.relevance)}`}{hit.status ? ` · ${hit.status}` : ""}</p>
+                    </div>
+                    <div className="flex gap-3 text-sm">
+                      <button type="button" className="text-primary" disabled={busy || hit.status === "added"} onClick={async () => { try { await addOne(hit); } catch (err) { toast.error(err instanceof Error ? err.message : "Could not add"); } }}>{hit.status === "added" ? "Added" : "Add to story"}</button>
+                      <button type="button" className="text-muted-foreground" disabled={busy || hit.status === "ignored"} onClick={() => ignoreIds([hit.id])}>Ignore</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
       </section>
 
       <section className="mb-8 border border-border p-4 text-sm">
