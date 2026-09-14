@@ -17,13 +17,13 @@ function titleKey(domain: string, title: string) {
 async function existingKeys(supabase: any, storyId: string) {
   const rows = await supabase
     .from("desk_discovery_hits")
-    .select("id, url, domain, title")
+    .select("id, url, domain, title, status, snippet")
     .eq("story_id", storyId);
-  const urls = new Set<string>();
-  const titles = new Set<string>();
+  const urls = new Map<string, any>();
+  const titles = new Map<string, any>();
   for (const row of rows.data ?? []) {
-    if (row.url) urls.add(String(row.url).replace(/\/$/, ""));
-    titles.add(titleKey(row.domain || "", row.title || ""));
+    if (row.url) urls.set(String(row.url).replace(/\/$/, ""), row);
+    titles.set(titleKey(row.domain || "", row.title || ""), row);
   }
   return { urls, titles };
 }
@@ -50,9 +50,18 @@ export const findRelatedCoverage = createServerFn({ method: "POST" })
     for (const hit of result.hits.slice(0, 16)) {
       const url = (canonicalizeUrl(hit.url) || hit.url).replace(/\/$/, "");
       const key = titleKey(hit.domain || "", hit.title);
-      if (existing.urls.has(url) || existing.titles.has(key)) continue;
-      existing.urls.add(url);
-      existing.titles.add(key);
+      const prior = existing.urls.get(url) || existing.titles.get(key);
+      if (prior) {
+        await context.supabase
+          .from("desk_discovery_hits")
+          .update({ relevance: hit.relevance, snippet: hit.snippet ?? prior.snippet, query: hit.query })
+          .eq("id", prior.id);
+        existing.urls.set(url, prior);
+        existing.titles.set(key, prior);
+        continue;
+      }
+      existing.urls.set(url, { url, title: hit.title });
+      existing.titles.set(key, { url, title: hit.title });
       const row = {
         story_id: data.storyId,
         provider: hit.provider,
@@ -89,7 +98,7 @@ export const findRelatedCoverage = createServerFn({ method: "POST" })
       .from("desk_discovery_hits")
       .select("*")
       .eq("story_id", data.storyId)
-      .order("created_at", { ascending: false });
+      .order("relevance", { ascending: false });
 
     await context.supabase.from("desk_jobs").insert({
       story_id: data.storyId,
