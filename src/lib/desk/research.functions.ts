@@ -55,7 +55,7 @@ async function persistResearchTables(supabase: any, storyId: string, research: S
       status: "conflicting",
       supporting_source_ids: conflict.sides.flatMap((side) => side.source_ids),
       conflicting_source_ids: [],
-      notes: "\u26a0 Conflicting information",
+      notes: "⚠ Conflicting information",
     });
   }
 }
@@ -67,7 +67,7 @@ export const getDeskStoryDetail = createServerFn({ method: "GET" })
     await assertDeskStaff(context as { supabase: any; userId: string });
     const storyRes = await context.supabase.from("desk_stories").select("*").eq("id", data.id).maybeSingle();
     if (storyRes.error) throw new Error(storyRes.error.message);
-    if (!storyRes.data) throw new Error("\u09b8\u09cd\u099f\u09cb\u09b0\u09bf \u09aa\u09be\u0993\u09af\u09bc\u09be \u09af\u09be\u09af\u09bc\u09a8\u09bf");
+    if (!storyRes.data) throw new Error("স্টোরি পাওয়া যায়নি");
     const sourcesRes = await context.supabase.from("desk_story_sources").select("*").eq("story_id", data.id);
     const claimsRes = await context.supabase.from("desk_source_claims").select("*").eq("story_id", data.id);
     const factsRes = await context.supabase.from("desk_fact_checks").select("*").eq("story_id", data.id);
@@ -135,7 +135,7 @@ export const prepareResearch = createServerFn({ method: "POST" })
         });
         research.warnings.push({
           code: "heuristic",
-          message: `\u26a0 Gemini research failed, heuristic fallback used: ${err instanceof Error ? err.message : String(err)}`,
+          message: `⚠ Gemini research failed, heuristic fallback used: ${err instanceof Error ? err.message : String(err)}`,
         });
         used = "heuristic_fallback";
       }
@@ -150,27 +150,27 @@ export const prepareResearch = createServerFn({ method: "POST" })
             ? "ready"
             : "needs_review";
 
-      const update = await supabase.from("desk_stories").update({
+      const coreUpdate = {
         research_status: status,
         research_packet: packet,
         confirmed_facts: packet.keyFacts,
         unverified_claims: packet.needsVerification,
         conflicting_facts: packet.conflicts,
-        research_provider: research.provider,
-        research_model: research.model,
-        research_generated_at: research.generatedAt,
         warning: research.warnings[0]?.message || null,
         last_error: null,
         updated_at: new Date().toISOString(),
+      };
+      const update = await supabase.from("desk_stories").update({
+        ...coreUpdate,
+        research_provider: research.provider,
+        research_model: research.model,
+        research_generated_at: research.generatedAt,
       }).eq("id", data.id);
       if (update.error && /column|schema cache|research_/i.test(update.error.message)) {
-        await supabase.from("desk_stories").update({
-          confirmed_facts: packet.keyFacts,
-          unverified_claims: packet.needsVerification,
-          conflicting_facts: packet.conflicts,
-          warning: research.warnings[0]?.message || null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", data.id);
+        const fallback = await supabase.from("desk_stories").update(coreUpdate).eq("id", data.id);
+        if (fallback.error) throw new Error(fallback.error.message);
+      } else if (update.error) {
+        throw new Error(update.error.message);
       }
 
       await supabase.from("desk_jobs").insert({
