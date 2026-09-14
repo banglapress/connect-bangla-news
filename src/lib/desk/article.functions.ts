@@ -86,7 +86,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         image_urls: [],
         content_type: "article",
         youtube_url: null,
-        author_name: "\u09a8\u09bf\u099c\u09b8\u09cd\u09ac \u09aa\u09cd\u09b0\u09a4\u09bf\u09ac\u09c7\u09a6\u0995",
+        author_name: "নিজস্ব প্রতিবেদক",
         author_id: context.userId,
         public_id: makePublicId(),
         is_lead: false,
@@ -127,7 +127,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         articleId = inserted.data.id;
       }
 
-      const storyPatch: Record<string, unknown> = {
+      const storyCore: Record<string, unknown> = {
         article_id: articleId,
         draft_title: drafted.title,
         draft_excerpt: drafted.excerpt,
@@ -136,27 +136,22 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         meta_description: drafted.meta_description,
         tags: drafted.tags,
         status: "draft",
-        article_status: drafted.article_status,
-        article_model: drafted.model,
-        article_generated_at: drafted.generatedAt,
-        article_warnings: drafted.warnings,
         warning: drafted.warnings[0]?.message || story.warning || null,
         last_error: null,
         updated_at: new Date().toISOString(),
       };
-      const savedStory = await supabase.from("desk_stories").update(storyPatch).eq("id", data.id);
+      const savedStory = await supabase.from("desk_stories").update({
+        ...storyCore,
+        article_status: drafted.article_status,
+        article_model: drafted.model,
+        article_generated_at: drafted.generatedAt,
+        article_warnings: drafted.warnings,
+      }).eq("id", data.id);
       if (savedStory.error && /column|schema cache|article_/i.test(savedStory.error.message)) {
-        await supabase.from("desk_stories").update({
-          article_id: articleId,
-          draft_title: drafted.title,
-          draft_excerpt: drafted.excerpt,
-          draft_body: drafted.body,
-          seo_title: drafted.seo_title,
-          meta_description: drafted.meta_description,
-          tags: drafted.tags,
-          status: "draft",
-          updated_at: new Date().toISOString(),
-        }).eq("id", data.id);
+        const fallback = await supabase.from("desk_stories").update(storyCore).eq("id", data.id);
+        if (fallback.error) throw new Error(fallback.error.message);
+      } else if (savedStory.error) {
+        throw new Error(savedStory.error.message);
       }
 
       await supabase.from("desk_jobs").insert({
