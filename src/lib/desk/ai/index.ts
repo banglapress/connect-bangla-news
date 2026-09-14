@@ -16,13 +16,25 @@ export function getArticleProvider(): AIProvider {
 export { geminiProvider, heuristicProvider, openaiProvider };
 export { DEFAULT_GEMINI_MODEL } from "./gemini";
 export { toLegacyPacket, validateGeneratedArticle } from "./validate";
+export { DEPTH_TARGETS, inferArticleDepth, parseArticleDepth, countWords } from "./quality";
+export {
+  classifyContentLevel,
+  availableSourceText,
+  extractSourceNote,
+  markUniqueNotes,
+  utilizationFromNotes,
+  packSourceNotes,
+  sourceFingerprint,
+} from "./source-content";
 export type {
   AIProvider,
+  ArticleDepth,
   ArticleInput,
   ArticleStatus,
   EditorialValidation,
   ExtractedClaim,
   GeneratedArticle,
+  QualityMetrics,
   ResearchInput,
   ResearchPacket,
   ResearchWarning,
