@@ -65,13 +65,11 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
     skippedOld: 0,
     error: null,
   };
-  const now = new Date();
-  const nowIso = now.toISOString();
+  const nowIso = new Date().toISOString();
   await patchSource(supabase, source.id, { last_fetched_at: nowIso });
 
   if (!source.rss_url) {
-    result.error = "RSS URL নেই";
-    await patchSource(supabase, source.id, { last_error: result.error });
+    result.error = "Discovery source — no official RSS/API";
     return result;
   }
 
@@ -92,7 +90,6 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
         result.duplicates += 1;
         continue;
       }
-
       const published = item.publishedAt ? new Date(item.publishedAt) : null;
       const hasDate = !!(published && !Number.isNaN(published.getTime()));
       if (hasDate && published.getTime() < cutoff.getTime()) {
@@ -107,36 +104,27 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
         result.skippedOld += 1;
         continue;
       }
-
       const key = clusterKeyFromTitle(item.title);
       const existing = await supabase.from("desk_stories").select("id, source_count, title_hint").eq("cluster_key", key).maybeSingle();
       let story = existing.data;
       if (!story) {
-        const created = await supabase
-          .from("desk_stories")
-          .insert({
-            cluster_key: key,
-            title_hint: item.title,
-            category_slug: source.category_slug,
-            status: "new",
-            source_count: 1,
-            warning: "এক সোর্স",
-          })
-          .select("id, source_count, title_hint")
-          .single();
+        const created = await supabase.from("desk_stories").insert({
+          cluster_key: key,
+          title_hint: item.title,
+          category_slug: source.category_slug,
+          status: "new",
+          source_count: 1,
+          warning: "এক সোর্স",
+        }).select("id, source_count, title_hint").single();
         if (created.error) throw new Error(created.error.message);
         story = created.data;
         result.inserted += 1;
       } else {
         const nextCount = (story.source_count ?? 1) + 1;
         const warning = clusterWarning(story.title_hint, item.title, key);
-        await supabase
-          .from("desk_stories")
-          .update({ source_count: nextCount, updated_at: nowIso, warning })
-          .eq("id", story.id);
+        await supabase.from("desk_stories").update({ source_count: nextCount, updated_at: nowIso, warning }).eq("id", story.id);
         result.clustered += 1;
       }
-
       const row = {
         story_id: story.id,
         source_id: source.id,
@@ -152,13 +140,8 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
       let saved = await supabase.from("desk_story_sources").insert(row);
       if (saved.error && /column|schema cache|published_at|image_url|canonical_url/i.test(saved.error.message)) {
         saved = await supabase.from("desk_story_sources").insert({
-          story_id: row.story_id,
-          source_id: row.source_id,
-          url: row.url,
-          title: row.title,
-          excerpt: row.excerpt,
-          raw_text: row.raw_text,
-          fetched_at: row.fetched_at,
+          story_id: row.story_id, source_id: row.source_id, url: row.url, title: row.title,
+          excerpt: row.excerpt, raw_text: row.raw_text, fetched_at: row.fetched_at,
         });
       }
       if (saved.error) {
@@ -168,7 +151,6 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
       }
       accepted += 1;
     }
-
     await patchSource(supabase, source.id, { last_success_at: nowIso, last_error: null });
     await logJob(supabase, "ingest", "ok", { sourceId: source.id, sourceName: source.name, ...result });
   } catch (err) {
@@ -189,8 +171,9 @@ export const runDeskIngest = createServerFn({ method: "POST" })
     if (data?.sourceId) query = query.eq("id", data.sourceId);
     const { data: sources, error } = await query;
     if (error) throw new Error(error.message);
+    const runnable = (sources ?? []).filter((source: { rss_url?: string | null }) => data?.sourceId || source.rss_url);
     const results: IngestResult[] = [];
-    for (const source of sources ?? []) results.push(await ingestSource(context.supabase, source, settings));
+    for (const source of runnable) results.push(await ingestSource(context.supabase, source, settings));
     return { results, settings };
   });
 
