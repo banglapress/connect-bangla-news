@@ -17,6 +17,7 @@ export type NewsSource = {
   notes: string | null;
   source_kind?: SourceKind | string | null;
   discovery_mode?: string | null;
+  access_status?: string | null;
   last_fetched_at?: string | null;
   last_success_at?: string | null;
   last_error?: string | null;
@@ -42,7 +43,7 @@ export const listNewsSources = createServerFn({ method: "GET" })
     await assertDeskStaff(context as { supabase: any; userId: string });
     const full = await context.supabase
       .from("news_sources")
-      .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes, source_kind, discovery_mode, last_fetched_at, last_success_at, last_error")
+      .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes, source_kind, discovery_mode, access_status, last_fetched_at, last_success_at, last_error")
       .order("priority");
     if (!full.error) return (full.data ?? []) as NewsSource[];
     const basic = await context.supabase
@@ -59,6 +60,11 @@ export const saveNewsSource = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
     const hasRss = Boolean(data.rss_url && data.rss_url.trim());
+    let mode = hasRss ? "rss" : "manual";
+    if (data.id) {
+      const current = await context.supabase.from("news_sources").select("discovery_mode, access_status").eq("id", data.id).maybeSingle();
+      if (current.data?.discovery_mode === "blocked" || current.data?.access_status === "access_denied") mode = "blocked";
+    }
     const payload: Record<string, unknown> = {
       name: data.name.trim(),
       homepage_url: data.homepage_url || null,
@@ -70,7 +76,8 @@ export const saveNewsSource = createServerFn({ method: "POST" })
       priority: data.priority ?? 100,
       notes: data.notes || null,
       source_kind: data.source_kind || "other",
-      discovery_mode: hasRss ? "rss" : "manual",
+      discovery_mode: mode,
+      access_status: mode === "blocked" ? "access_denied" : hasRss ? "ok" : "no_feed",
       updated_at: new Date().toISOString(),
     };
     const write = async (body: Record<string, unknown>) => {
@@ -78,9 +85,10 @@ export const saveNewsSource = createServerFn({ method: "POST" })
       return context.supabase.from("news_sources").insert(body).select("id").single();
     };
     let res = await write(payload);
-    if (res.error && /column|schema cache|source_kind|discovery_mode/i.test(res.error.message)) {
+    if (res.error && /column|schema cache|source_kind|discovery_mode|access_status/i.test(res.error.message)) {
       delete payload.source_kind;
       delete payload.discovery_mode;
+      delete payload.access_status;
       res = await write(payload);
     }
     if (res.error) throw new Error(res.error.message);
@@ -92,10 +100,7 @@ export const setNewsSourceActive = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ id: z.string().uuid(), active: z.boolean() }).parse(data))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const { error } = await context.supabase
-      .from("news_sources")
-      .update({ active: data.active, updated_at: new Date().toISOString() })
-      .eq("id", data.id);
+    const { error } = await context.supabase.from("news_sources").update({ active: data.active, updated_at: new Date().toISOString() }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
