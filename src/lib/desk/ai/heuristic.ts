@@ -8,9 +8,8 @@ function splitClaims(text: string): string[] {
 }
 
 function classify(text: string): ExtractedClaim["type"] {
-  if (/\d{4}|\u09e6-\u09ef/.test(text) && /(তারিখ|দিন|জানুয়ারি|January|March|April)/i.test(text)) return "date";
-  if (/\d/.test(text) || /[০-৯]/.test(text)) return "number";
-  if /(মন্ত্রী|সরকার|প্রধানমন্ত্রী|সরকার)/.test(text)) return "person";
+  if (/\d{1,2}[\/.-]\d{1,2}|\d{4}/.test(text)) return "date";
+  if (/\d/.test(text) || /[\u09e6-\u09ef]/.test(text)) return "number";
   return "general";
 }
 
@@ -34,6 +33,6 @@ export const heuristicProvider: AIProvider = {
   },
   async summarizeTopic(sources) {
     const titles = sources.map((row) => row.title).filter(Boolean);
-    return titles[0] || "বিষয় শিরোনামহীন";
+    return titles[0] || "Untitled story";
   },
 };
