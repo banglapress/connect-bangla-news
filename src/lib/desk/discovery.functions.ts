@@ -196,7 +196,7 @@ export const addCoverageToStory = createServerFn({ method: "POST" })
       canonical_url: canonical,
       title: data.title,
       excerpt: data.excerpt || "Added from discovery. Not a trusted fact until reviewed.",
-      raw_text: "",
+      raw_text: data.excerpt || "",
       published_at: data.publishedAt || null,
       fetched_at: new Date().toISOString(),
       origin: "discovery",
