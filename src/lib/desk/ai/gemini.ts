@@ -10,7 +10,14 @@ import type {
 import { ARTICLE_JSON_SCHEMA, RESEARCH_JSON_SCHEMA } from "./schemas";
 import { slugifyBangla } from "@/lib/bangla";
 
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
+
+const RETIRED_GEMINI_MODELS = new Set([
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
+]);
 
 function readGeminiKey() {
   if (typeof process === "undefined") return "";
@@ -18,8 +25,13 @@ function readGeminiKey() {
 }
 
 function readGeminiModel() {
-  if (typeof process === "undefined") return DEFAULT_GEMINI_MODEL;
-  return String(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
+  const raw =
+    typeof process === "undefined"
+      ? DEFAULT_GEMINI_MODEL
+      : String(process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL;
+  const model = raw.replace(/^models\//, "");
+  if (RETIRED_GEMINI_MODELS.has(model)) return DEFAULT_GEMINI_MODEL;
+  return model;
 }
 
 function endpoint(model: string) {
