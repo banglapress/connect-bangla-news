@@ -1,3 +1,5 @@
+import type { DiscoveryEntities } from "./entities";
+
 export type DiscoveryQuery = {
   text: string;
   lang: "bn" | "en";
@@ -41,6 +43,7 @@ export type DiscoverySearchContext = {
   phrases: string[];
   knownUrls: string[];
   trustedDomains: string[];
+  structured?: DiscoveryEntities;
 };
 
 export interface DiscoveryProvider {
