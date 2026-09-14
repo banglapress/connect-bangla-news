@@ -26,6 +26,11 @@ async function logJob(supabase: any, stage: string, status: string, extra: Recor
   });
 }
 
+async function patchSource(supabase: any, id: string, payload: Record<string, unknown>) {
+  const res = await supabase.from("news_sources").update(payload).eq("id", id);
+  if (res.error && !/column|schema cache/i.test(res.error.message)) throw new Error(res.error.message);
+}
+
 async function alreadyHaveUrl(supabase: any, canonical: string) {
   const byUrl = await supabase.from("desk_story_sources").select("id").eq("url", canonical).maybeSingle();
   if (byUrl.data) return true;
@@ -44,11 +49,11 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
     error: null,
   };
   const now = new Date().toISOString();
-  await supabase.from("news_sources").update({ last_fetched_at: now }).eq("id", source.id);
+  await patchSource(supabase, source.id, { last_fetched_at: now });
 
   if (!source.rss_url) {
     result.error = "RSS URL নেই";
-    await supabase.from("news_sources").update({ last_error: result.error }).eq("id", source.id);
+    await patchSource(supabase, source.id, { last_error: result.error });
     return result;
   }
 
@@ -86,11 +91,7 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
         const nextCount = (story.source_count ?? 1) + 1;
         await supabase
           .from("desk_stories")
-          .update({
-            source_count: nextCount,
-            updated_at: now,
-            warning: nextCount >= 2 ? null : "এক সোর্স",
-          })
+          .update({ source_count: nextCount, updated_at: now, warning: nextCount >= 2 ? null : "এক সোর্স" })
           .eq("id", story.id);
         result.clustered += 1;
       }
@@ -125,11 +126,11 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
       }
     }
 
-    await supabase.from("news_sources").update({ last_success_at: now, last_error: null }).eq("id", source.id);
+    await patchSource(supabase, source.id, { last_success_at: now, last_error: null });
     await logJob(supabase, "ingest", "ok", { sourceId: source.id, sourceName: source.name, ...result });
   } catch (err) {
     result.error = err instanceof Error ? err.message : "ইনজেস্ট ব্যর্থ";
-    await supabase.from("news_sources").update({ last_error: result.error }).eq("id", source.id);
+    await patchSource(supabase, source.id, { last_error: result.error });
     await logJob(supabase, "ingest", "failed", { sourceId: source.id, sourceName: source.name, error: result.error });
   }
   return result;
@@ -140,13 +141,12 @@ export const runDeskIngest = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ sourceId: z.string().uuid().optional() }).parse(data ?? {}))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const supabase = context.supabase;
-    let query = supabase.from("news_sources").select("*").eq("active", true).order("priority");
-    if (data.sourceId) query = query.eq("id", data.sourceId);
+    let query = context.supabase.from("news_sources").select("*").eq("active", true).order("priority");
+    if (data?.sourceId) query = query.eq("id", data.sourceId);
     const { data: sources, error } = await query;
     if (error) throw new Error(error.message);
     const results: IngestResult[] = [];
-    for (const source of sources ?? []) results.push(await ingestSource(supabase, source));
+    for (const source of sources ?? []) results.push(await ingestSource(context.supabase, source));
     return { results };
   });
 
