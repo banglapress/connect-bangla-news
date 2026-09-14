@@ -24,11 +24,17 @@ export const getDeskStoryDetail = createServerFn({ method: "GET" })
     const sourcesRes = await context.supabase.from("desk_story_sources").select("*").eq("story_id", data.id);
     const claimsRes = await context.supabase.from("desk_source_claims").select("*").eq("story_id", data.id);
     const factsRes = await context.supabase.from("desk_fact_checks").select("*").eq("story_id", data.id);
+    const hitsRes = await context.supabase
+      .from("desk_discovery_hits")
+      .select("*")
+      .eq("story_id", data.id)
+      .order("created_at", { ascending: false });
     return {
       story: storyRes.data,
       sources: sourcesRes.data ?? [],
       claims: claimsRes.error ? [] : claimsRes.data ?? [],
       facts: factsRes.error ? [] : factsRes.data ?? [],
+      discoveryHits: hitsRes.error ? [] : hitsRes.data ?? [],
     };
   });
 
