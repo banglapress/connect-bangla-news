@@ -84,7 +84,10 @@ export const heuristicProvider: AIProvider = {
     }
     return {
       summary: input.sources[0]?.title || input.title || "",
+      executive_summary: input.sources[0]?.title || input.title || "",
+      what_happened: input.sources[0]?.title || input.title || "",
       key_facts: attributed.filter((row) => row.support === "multi_source"),
+      detailed_facts: attributed,
       timeline: [],
       people: [],
       organizations: [],
@@ -94,6 +97,13 @@ export const heuristicProvider: AIProvider = {
       source_conflicts: [],
       unverified_claims: attributed.filter((row) => row.support === "single_source"),
       important_quotes: [],
+      attributed_statements: [],
+      reactions: [],
+      background: [],
+      previous_developments: [],
+      consequences: [],
+      unique_details: attributed.filter((row) => row.support === "single_source").slice(0, 8),
+      missing_information: [],
       source_links: input.sources.map((source) => ({
         title: source.title || source.url,
         url: source.url,
@@ -101,12 +111,15 @@ export const heuristicProvider: AIProvider = {
         published_at: source.publishedAt,
         origin: source.origin || "unknown",
         trusted: source.trusted === true,
+        content_level: source.contentLevel,
       })),
       warnings,
       quality: "heuristic",
       provider: "heuristic",
       model: null,
       generatedAt: new Date().toISOString(),
+      truncated: input.truncated === true,
+      version: 2,
     };
   },
   async generateArticle(_input: ArticleInput): Promise<GeneratedArticle> {
