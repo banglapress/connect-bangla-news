@@ -17,6 +17,17 @@ export type IngestResult = {
   error: string | null;
 };
 
+function isRssMode(source: { discovery_mode?: string | null; rss_url?: string | null }) {
+  return Boolean(source.rss_url) && (source.discovery_mode || "rss") === "rss";
+}
+
+function classifyFetchError(message: string) {
+  if (/403|cloudflare|just a moment|access_denied/i.test(message)) {
+    return "access_denied: RSS blocked (HTTP 403)";
+  }
+  return message;
+}
+
 async function logJob(supabase: any, stage: string, status: string, extra: Record<string, unknown>) {
   await supabase.from("desk_jobs").insert({
     stage,
@@ -49,8 +60,8 @@ function cutoffFor(source: { last_success_at?: string | null }, lookbackHours: n
 }
 
 function clusterWarning(existingTitle: string | null, incomingTitle: string, key: string) {
-  if (key.length < 18) return "শিরোনাম সাদৃশ্য। ভুল ক্লাস্টার হতে পারে";
-  if (existingTitle && clusterKeyFromTitle(existingTitle) !== key) return "শিরোনাম মেলেনি। ক্লাস্টার যাচাই করুন";
+  if (key.length < 18) return "Possible weak title cluster";
+  if (existingTitle && clusterKeyFromTitle(existingTitle) !== key) return "Title mismatch. Review cluster.";
   return null;
 }
 
@@ -65,13 +76,16 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
     skippedOld: 0,
     error: null,
   };
-  const nowIso = new Date().toISOString();
-  await patchSource(supabase, source.id, { last_fetched_at: nowIso });
-
-  if (!source.rss_url) {
-    result.error = "Discovery source — no official RSS/API";
+  if (!isRssMode(source)) {
+    result.error =
+      source.access_status === "access_denied" || source.discovery_mode === "blocked"
+        ? "access_denied: RSS blocked — not polled"
+        : "Discovery source — RSS not polled";
     return result;
   }
+
+  const nowIso = new Date().toISOString();
+  await patchSource(supabase, source.id, { last_fetched_at: nowIso });
 
   try {
     const xml = await fetchFeedXml(source.rss_url);
@@ -79,28 +93,15 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
     result.fetched = items.length;
     const cutoff = cutoffFor(source, settings.lookbackHours);
     let accepted = 0;
-
     for (const item of items) {
       const canonical = canonicalizeUrl(item.url);
-      if (!canonical) {
-        result.duplicates += 1;
-        continue;
-      }
-      if (await alreadyHaveUrl(supabase, canonical)) {
+      if (!canonical || (await alreadyHaveUrl(supabase, canonical))) {
         result.duplicates += 1;
         continue;
       }
       const published = item.publishedAt ? new Date(item.publishedAt) : null;
       const hasDate = !!(published && !Number.isNaN(published.getTime()));
-      if (hasDate && published.getTime() < cutoff.getTime()) {
-        result.skippedOld += 1;
-        continue;
-      }
-      if (!hasDate && !source.last_success_at) {
-        result.skippedOld += 1;
-        continue;
-      }
-      if (accepted >= settings.maxItems) {
+      if ((hasDate && published.getTime() < cutoff.getTime()) || (!hasDate && !source.last_success_at) || accepted >= settings.maxItems) {
         result.skippedOld += 1;
         continue;
       }
@@ -109,36 +110,26 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
       let story = existing.data;
       if (!story) {
         const created = await supabase.from("desk_stories").insert({
-          cluster_key: key,
-          title_hint: item.title,
-          category_slug: source.category_slug,
-          status: "new",
-          source_count: 1,
-          warning: "এক সোর্স",
+          cluster_key: key, title_hint: item.title, category_slug: source.category_slug,
+          status: "new", source_count: 1, warning: "One source",
         }).select("id, source_count, title_hint").single();
         if (created.error) throw new Error(created.error.message);
         story = created.data;
         result.inserted += 1;
       } else {
         const nextCount = (story.source_count ?? 1) + 1;
-        const warning = clusterWarning(story.title_hint, item.title, key);
-        await supabase.from("desk_stories").update({ source_count: nextCount, updated_at: nowIso, warning }).eq("id", story.id);
+        await supabase.from("desk_stories").update({
+          source_count: nextCount, updated_at: nowIso, warning: clusterWarning(story.title_hint, item.title, key),
+        }).eq("id", story.id);
         result.clustered += 1;
       }
       const row = {
-        story_id: story.id,
-        source_id: source.id,
-        url: canonical,
-        canonical_url: canonical,
-        title: item.title,
-        excerpt: item.excerpt,
-        raw_text: item.excerpt,
-        published_at: item.publishedAt,
-        image_url: item.imageUrl,
-        fetched_at: nowIso,
+        story_id: story.id, source_id: source.id, url: canonical, canonical_url: canonical,
+        title: item.title, excerpt: item.excerpt, raw_text: item.excerpt,
+        published_at: item.publishedAt, image_url: item.imageUrl, fetched_at: nowIso, origin: "rss", trusted: false,
       };
       let saved = await supabase.from("desk_story_sources").insert(row);
-      if (saved.error && /column|schema cache|published_at|image_url|canonical_url/i.test(saved.error.message)) {
+      if (saved.error && /column|schema cache/i.test(saved.error.message)) {
         saved = await supabase.from("desk_story_sources").insert({
           story_id: row.story_id, source_id: row.source_id, url: row.url, title: row.title,
           excerpt: row.excerpt, raw_text: row.raw_text, fetched_at: row.fetched_at,
@@ -151,11 +142,16 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
       }
       accepted += 1;
     }
-    await patchSource(supabase, source.id, { last_success_at: nowIso, last_error: null });
+    await patchSource(supabase, source.id, { last_success_at: nowIso, last_error: null, access_status: "ok" });
     await logJob(supabase, "ingest", "ok", { sourceId: source.id, sourceName: source.name, ...result });
   } catch (err) {
-    result.error = err instanceof Error ? err.message : "ইনজেস্ট ব্যর্থ";
-    await patchSource(supabase, source.id, { last_error: result.error });
+    const raw = err instanceof Error ? err.message : "Ingest failed";
+    result.error = classifyFetchError(raw);
+    const blocked = result.error.startsWith("access_denied");
+    await patchSource(supabase, source.id, {
+      last_error: result.error,
+      ...(blocked ? { discovery_mode: "blocked", access_status: "access_denied" } : {}),
+    });
     await logJob(supabase, "ingest", "failed", { sourceId: source.id, sourceName: source.name, error: result.error });
   }
   return result;
@@ -171,7 +167,8 @@ export const runDeskIngest = createServerFn({ method: "POST" })
     if (data?.sourceId) query = query.eq("id", data.sourceId);
     const { data: sources, error } = await query;
     if (error) throw new Error(error.message);
-    const runnable = (sources ?? []).filter((source: { rss_url?: string | null }) => data?.sourceId || source.rss_url);
+    const selected = sources ?? [];
+    const runnable = data?.sourceId ? selected : selected.filter((source: any) => isRssMode(source));
     const results: IngestResult[] = [];
     for (const source of runnable) results.push(await ingestSource(context.supabase, source, settings));
     return { results, settings };
