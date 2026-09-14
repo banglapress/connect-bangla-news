@@ -61,28 +61,27 @@ function SourceManager() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="section-rule mb-6 flex items-center justify-between pb-2">
+        <h1 className="font-serif text-2xl font-bold">সোর্স ম্যানেজার</h1>
+        <div className="flex gap-3 text-sm">
+          <a href="/admin/desk" className="text-primary hover:underline">মনিটর</a>
+          <a href="/admin/desk/settings" className="text-primary hover:underline">সেটিংস</a>
+        </div>
+      </div>
       <form onSubmit={onSubmit} className="mb-8 grid gap-3 border border-border p-4 sm:grid-cols-2">
         <input required className="border border-border px-3 py-2" placeholder="সোর্সের নাম" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="border border-border px-3 py-2" placeholder="হোমপেজ URL" value={form.homepage_url} onChange={(e) => setForm({ ...form, homepage_url: e.target.value })} />
         <input className="border border-border px-3 py-2 sm:col-span-2" placeholder="RSS URL" value={form.rss_url} onChange={(e) => setForm({ ...form, rss_url: e.target.value })} />
-        <input className="border border-border px-3 py-2 sm:col-span-2" placeholder="API URL (থাকলে)" value={form.api_url} onChange={(e) => setForm({ ...form, api_url: e.target.value })} />
+        <input className="border border-border px-3 py-2 sm:col-span-2" placeholder="API URL" value={form.api_url} onChange={(e) => setForm({ ...form, api_url: e.target.value })} />
         <input className="border border-border px-3 py-2" placeholder="ক্যাটেগরি স্লাগ" value={form.category_slug} onChange={(e) => setForm({ ...form, category_slug: e.target.value })} />
         <input type="number" min={1} max={5} className="border border-border px-3 py-2" value={form.trust_level} onChange={(e) => setForm({ ...form, trust_level: Number(e.target.value) })} />
         <input type="number" className="border border-border px-3 py-2" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
-          সক্রিয়
-        </label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> সক্রিয়</label>
         <textarea className="min-h-16 border border-border px-3 py-2 sm:col-span-2" placeholder="নোট" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        <button className="bg-primary px-4 py-2 text-sm text-primary-foreground">{form.id ? "সোর্স আপডেট" : "সোর্স যোগ করুন"}</button>
+        <button className="bg-primary px-4 py-2 text-sm text-primary-foreground">{form.id ? "আপডেট" : "যোগ করুন"}</button>
       </form>
-
-      {sources.isError ? (
-        <p className="text-sm text-destructive">{sources.error instanceof Error ? sources.error.message : "সোর্স পড়া যায়নি"}</p>
-      ) : sources.isLoading ? (
-        <p className="text-muted-foreground">সোর্স আনা হচ্ছে…</p>
-      ) : (
+      {sources.isError ? <p className="text-sm text-destructive">{sources.error instanceof Error ? sources.error.message : "সোর্স পড়া যায়নি"}</p> : (
         <div className="divide-y divide-border border border-border">
           {(sources.data ?? []).map((s) => (
             <div key={s.id} className="p-3 text-sm">
@@ -92,7 +91,7 @@ function SourceManager() {
                   <p className="truncate text-xs text-muted-foreground">{s.rss_url || "RSS নেই"}</p>
                   <p className="text-xs text-muted-foreground">
                     শেষ চেষ্টা: {s.last_fetched_at ? formatBanglaDateTime(s.last_fetched_at) : "—"}
-                    {" · "}সফল: {s.last_success_at ? formatBanglaDateTime(s.last_success_at) : "—"}
+                    {" · "}last successful fetch: {s.last_success_at ? formatBanglaDateTime(s.last_success_at) : "—"}
                   </p>
                   {s.last_error ? <p className="text-xs text-destructive">{s.last_error}</p> : null}
                 </div>
@@ -101,7 +100,7 @@ function SourceManager() {
                   try {
                     const out = await ingest({ data: { sourceId: s.id } });
                     const row = out.results[0];
-                    toast.success(`${s.name}: নতুন ${row?.inserted ?? 0}, ক্লাস্টার ${row?.clustered ?? 0}, স্কিপ ${row?.skipped ?? 0}`);
+                    toast.success(`${s.name}: Fetched ${row?.fetched ?? 0} · New ${row?.inserted ?? 0} · Duplicate ${row?.duplicates ?? 0} · Skipped ${row?.skippedOld ?? 0} · Clustered ${row?.clustered ?? 0}`);
                     if (row?.error) toast.error(row.error);
                     await queryClient.invalidateQueries({ queryKey: ["news-sources"] });
                     await queryClient.invalidateQueries({ queryKey: ["desk-stories"] });
@@ -112,16 +111,8 @@ function SourceManager() {
                   }
                 }}>{runningId === s.id ? "চলছে…" : "Run"}</button>
                 <button type="button" className="text-primary" onClick={() => setForm({
-                  id: s.id,
-                  name: s.name,
-                  homepage_url: s.homepage_url ?? "",
-                  rss_url: s.rss_url ?? "",
-                  api_url: s.api_url ?? "",
-                  category_slug: s.category_slug ?? "",
-                  active: s.active,
-                  trust_level: s.trust_level,
-                  priority: s.priority,
-                  notes: s.notes ?? "",
+                  id: s.id, name: s.name, homepage_url: s.homepage_url ?? "", rss_url: s.rss_url ?? "", api_url: s.api_url ?? "",
+                  category_slug: s.category_slug ?? "", active: s.active, trust_level: s.trust_level, priority: s.priority, notes: s.notes ?? "",
                 })}>সম্পাদনা</button>
                 <button type="button" className="text-primary" onClick={async () => {
                   try {
