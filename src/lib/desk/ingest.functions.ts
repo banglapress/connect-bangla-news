@@ -26,6 +26,13 @@ async function logJob(supabase: any, stage: string, status: string, extra: Recor
   });
 }
 
+async function alreadyHaveUrl(supabase: any, canonical: string) {
+  const byUrl = await supabase.from("desk_story_sources").select("id").eq("url", canonical).maybeSingle();
+  if (byUrl.data) return true;
+  const byCanon = await supabase.from("desk_story_sources").select("id").eq("canonical_url", canonical).maybeSingle();
+  return !!byCanon.data && !byCanon.error;
+}
+
 async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
   const result: IngestResult = {
     sourceId: source.id,
@@ -52,16 +59,7 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
 
     for (const item of items) {
       const canonical = canonicalizeUrl(item.url);
-      if (!canonical) {
-        result.skipped += 1;
-        continue;
-      }
-      const existing = await supabase
-        .from("desk_story_sources")
-        .select("id")
-        .or(`url.eq.${canonical},canonical_url.eq.${canonical}`)
-        .maybeSingle();
-      if (existing.data) {
+      if (!canonical || (await alreadyHaveUrl(supabase, canonical))) {
         result.skipped += 1;
         continue;
       }
@@ -77,7 +75,7 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
             category_slug: source.category_slug,
             status: "new",
             source_count: 1,
-            warning: null,
+            warning: "এক সোর্স",
           })
           .select("id, source_count")
           .single();
@@ -85,12 +83,13 @@ async function ingestSource(supabase: any, source: any): Promise<IngestResult> {
         story = created.data;
         result.inserted += 1;
       } else {
+        const nextCount = (story.source_count ?? 1) + 1;
         await supabase
           .from("desk_stories")
           .update({
-            source_count: (story.source_count ?? 1) + 1,
+            source_count: nextCount,
             updated_at: now,
-            warning: (story.source_count ?? 1) + 1 >= 2 ? null : "এক সোর্স",
+            warning: nextCount >= 2 ? null : "এক সোর্স",
           })
           .eq("id", story.id);
         result.clustered += 1;
@@ -147,9 +146,7 @@ export const runDeskIngest = createServerFn({ method: "POST" })
     const { data: sources, error } = await query;
     if (error) throw new Error(error.message);
     const results: IngestResult[] = [];
-    for (const source of sources ?? []) {
-      results.push(await ingestSource(supabase, source));
-    }
+    for (const source of sources ?? []) results.push(await ingestSource(supabase, source));
     return { results };
   });
 
