@@ -14,6 +14,7 @@ export function getArticleProvider(): AIProvider {
 }
 
 export { geminiProvider, heuristicProvider, openaiProvider };
+export { DEFAULT_GEMINI_MODEL } from "./gemini";
 export { toLegacyPacket, validateGeneratedArticle } from "./validate";
 export type {
   AIProvider,
