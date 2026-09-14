@@ -1,7 +1,14 @@
-import type { DiscoveryDiagnostic, DiscoveryHit, DiscoverySearchResult } from "./types";
+import { canonicalizeUrl } from "@/lib/desk/url";
+import { hostnameOf } from "./trusted";
+import type { DiscoveryDiagnostic, DiscoveryHit, DiscoveryProvider, DiscoveryQuery, DiscoverySearchContext } from "./types";
 
 const GDELT = "https://api.gdeltproject.org/api/v2/doc/doc";
-const PROBE_QUERY = "bangladesh";
+const COOLDOWN_MS = 6000;
+let lastCallAt = 0;
+
+function preview(text: string) {
+  return text.replace(/\s+/g, " ").slice(0, 240);
+}
 
 function encodeRequest(query: string) {
   const params = new URLSearchParams();
@@ -14,44 +21,60 @@ function encodeRequest(query: string) {
   return `${GDELT}?${params.toString()}`;
 }
 
-function preview(text: string) {
-  return text.replace(/\s+/g, " ").slice(0, 240);
-}
-
-function networkMessage(err: unknown) {
-  if (err instanceof DOMException && err.name === "AbortError") return "Network timeout talking to GDELT (12s)";
-  const message = err instanceof Error ? err.message : String(err);
-  if (/fetch failed|ECONNRESET|ENOTFOUND|certificate|socket/i.test(message)) {
-    return `Network failure talking to GDELT: ${message}`;
-  }
-  return message;
-}
-
-function parseArticles(payload: any): DiscoveryHit[] {
+function parseArticles(payload: any, query: string): DiscoveryHit[] {
   const articles = payload?.articles ?? payload?.Articles ?? [];
   if (!Array.isArray(articles)) return [];
-  return articles.map((row: any) => {
-    const url = String(row.url || row.URL || "");
-    return {
-      title: String(row.title || row.Title || url),
-      url,
-      domain: String(row.domain || row.Domain || ""),
-      publishedAt: row.seendate || row.seenDate || null,
-      relevance: 0.5,
-      provider: "gdelt",
-    };
-  }).filter((hit: DiscoveryHit) => hit.url.startsWith("http"));
+  return articles
+    .map((row: any) => {
+      const url = String(row.url || row.URL || "");
+      return {
+        title: String(row.title || row.Title || url),
+        url,
+        domain: String(row.domain || row.Domain || hostnameOf(url)),
+        sourceName: String(row.domain || row.Domain || "") || null,
+        publishedAt: row.seendate || row.seenDate || null,
+        snippet: String(row.snippet || row.excerpt || "") || null,
+        relevance: 0,
+        provider: "gdelt",
+        query,
+      } satisfies DiscoveryHit;
+    })
+    .filter((hit: DiscoveryHit) => hit.url.startsWith("http"));
 }
 
-async function gdeltGet(query: string, label: string): Promise<{ hits: DiscoveryHit[]; diagnostic: DiscoveryDiagnostic }> {
-  const requestUrl = encodeRequest(query);
-  const started = Date.now();
-  let lastError: string | null = null;
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+export const gdeltProvider: DiscoveryProvider = {
+  name: "gdelt",
+  async search(queries: DiscoveryQuery[], _context: DiscoverySearchContext) {
+    const preferred = queries.find((row) => row.lang === "en") || queries[0];
+    if (!preferred) {
+      return {
+        hits: [],
+        provider: "gdelt",
+        diagnostics: [{
+          label: "GDELT fallback",
+          query: "",
+          requestUrl: "",
+          provider: "gdelt",
+          status: null,
+          resultCount: 0,
+          durationMs: 0,
+          error: "No query available for GDELT fallback",
+          bodyPreview: null,
+        }],
+      };
+    }
+
+    const wait = lastCallAt + COOLDOWN_MS - Date.now();
+    if (wait > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+
+    const requestUrl = encodeRequest(preferred.text);
+    const started = Date.now();
+    lastCallAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
     try {
-      console.info("[gdelt] request", { label, attempt, requestUrl });
       const res = await fetch(requestUrl, {
         method: "GET",
         redirect: "follow",
@@ -61,31 +84,41 @@ async function gdeltGet(query: string, label: string): Promise<{ hits: Discovery
           "User-Agent": "TheConnectDesk/1.0 (+https://www.theconnectbd.com)",
         },
       });
-      const headerBits = {
-        contentType: res.headers.get("content-type"),
-        retryAfter: res.headers.get("retry-after"),
-      };
       const text = await res.text();
       const durationMs = Date.now() - started;
-      console.info("[gdelt] response", {
-        label,
-        status: res.status,
-        headerBits,
-        durationMs,
-        bodyPreview: preview(text),
-      });
-      if (res.status !== 200) {
-        lastError = `GDELT HTTP ${res.status} (${res.statusText || "error"}). Body: ${preview(text) || "empty"}`;
-        if (res.status === 429 && attempt === 1) {
-          await new Promise((resolve) => setTimeout(resolve, 900));
-          continue;
-        }
+      if (res.status === 429) {
         return {
           hits: [],
-          diagnostic: {
-            label, query, requestUrl, provider: "gdelt", status: res.status,
-            resultCount: 0, durationMs, error: lastError, bodyPreview: preview(text),
-          },
+          provider: "gdelt",
+          diagnostics: [{
+            label: "GDELT fallback",
+            query: preferred.text,
+            requestUrl,
+            provider: "gdelt",
+            status: 429,
+            resultCount: 0,
+            durationMs,
+            error: "GDELT HTTP 429 rate_limited. No retry.",
+            bodyPreview: preview(text),
+            rateLimited: true,
+          }],
+        };
+      }
+      if (res.status !== 200) {
+        return {
+          hits: [],
+          provider: "gdelt",
+          diagnostics: [{
+            label: "GDELT fallback",
+            query: preferred.text,
+            requestUrl,
+            provider: "gdelt",
+            status: res.status,
+            resultCount: 0,
+            durationMs,
+            error: `GDELT HTTP ${res.status} (${res.statusText || "error"}). Body: ${preview(text) || "empty"}`,
+            bodyPreview: preview(text),
+          }],
         };
       }
       let payload: any;
@@ -94,74 +127,62 @@ async function gdeltGet(query: string, label: string): Promise<{ hits: Discovery
       } catch {
         return {
           hits: [],
-          diagnostic: {
-            label, query, requestUrl, provider: "gdelt", status: res.status,
-            resultCount: 0, durationMs,
+          provider: "gdelt",
+          diagnostics: [{
+            label: "GDELT fallback",
+            query: preferred.text,
+            requestUrl,
+            provider: "gdelt",
+            status: res.status,
+            resultCount: 0,
+            durationMs,
             error: `JSON parse failure. Body starts: ${preview(text) || "empty"}`,
             bodyPreview: preview(text),
-          },
+          }],
         };
       }
-      const hits = parseArticles(payload);
+      const hits = parseArticles(payload, preferred.text).map((hit) => ({
+        ...hit,
+        url: canonicalizeUrl(hit.url) || hit.url,
+      }));
       return {
         hits,
-        diagnostic: {
-          label, query, requestUrl, provider: "gdelt", status: res.status,
-          resultCount: hits.length, durationMs, error: null, bodyPreview: preview(text),
-        },
+        provider: "gdelt",
+        diagnostics: [{
+          label: "GDELT fallback",
+          query: preferred.text,
+          requestUrl,
+          provider: "gdelt",
+          status: res.status,
+          resultCount: hits.length,
+          durationMs,
+          error: null,
+          bodyPreview: preview(text),
+        }],
       };
     } catch (err) {
-      lastError = networkMessage(err);
-      console.error("[gdelt] exception", { label, attempt, requestUrl, error: lastError });
-      if (attempt === 1) {
-        await new Promise((resolve) => setTimeout(resolve, 700));
-        continue;
-      }
+      const message = err instanceof DOMException && err.name === "AbortError"
+        ? "Network timeout talking to GDELT (12s)"
+        : err instanceof Error
+          ? err.message
+          : String(err);
+      return {
+        hits: [],
+        provider: "gdelt",
+        diagnostics: [{
+          label: "GDELT fallback",
+          query: preferred.text,
+          requestUrl,
+          provider: "gdelt",
+          status: null,
+          resultCount: 0,
+          durationMs: Date.now() - started,
+          error: message,
+          bodyPreview: null,
+        }],
+      };
     } finally {
       clearTimeout(timer);
     }
-  }
-  return {
-    hits: [],
-    diagnostic: {
-      label, query, requestUrl, provider: "gdelt", status: null,
-      resultCount: 0, durationMs: Date.now() - started, error: lastError, bodyPreview: null,
-    },
-  };
-}
-
-export function storyQueryFromTitle(title: string) {
-  const latin = title.match(/[A-Za-z][A-Za-z0-9-]{2,}/g) ?? [];
-  if (latin.length) return `${latin.slice(0, 6).join(" ")} Bangladesh`;
-  return "Bangladesh sourcecountry:BG";
-}
-
-export function bengaliProbeQuery(title: string) {
-  const words = title.replace(/[^\p{L}\p{N}\s]+/gu, " ").split(/\s+/).filter((w) => w.length >= 2).slice(0, 5);
-  return words.length ? words.join(" ") : title.slice(0, 40);
-}
-
-export async function searchGdelt(title: string, knownUrls: string[]): Promise<DiscoverySearchResult> {
-  const known = new Set(knownUrls.map((u) => u.replace(/\/$/, "")));
-  const diagnostics: DiscoveryDiagnostic[] = [];
-
-  const probe = await gdeltGet(PROBE_QUERY, "A. fixed English connectivity test");
-  diagnostics.push(probe.diagnostic);
-
-  const storyQ = storyQueryFromTitle(title);
-  const story = await gdeltGet(storyQ, "B. story English/entity query");
-  diagnostics.push(story.diagnostic);
-
-  const bnQ = bengaliProbeQuery(title);
-  if (bnQ && bnQ !== storyQ) {
-    const bn = await gdeltGet(bnQ, "C. Bengali headline-derived query");
-    diagnostics.push(bn.diagnostic);
-  }
-
-  const merged = new Map<string, DiscoveryHit>();
-  for (const hit of [...probe.hits, ...story.hits]) {
-    const key = hit.url.replace(/\/$/, "");
-    if (!known.has(key)) merged.set(key, hit);
-  }
-  return { hits: [...merged.values()].slice(0, 20), diagnostics };
-}
+  },
+};
