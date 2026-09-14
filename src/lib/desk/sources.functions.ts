@@ -14,6 +14,9 @@ export type NewsSource = {
   trust_level: number;
   priority: number;
   notes: string | null;
+  last_fetched_at?: string | null;
+  last_success_at?: string | null;
+  last_error?: string | null;
 };
 
 const sourceInput = z.object({
@@ -33,12 +36,17 @@ export const listNewsSources = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const { data, error } = await context.supabase
+    const full = await context.supabase
+      .from("news_sources")
+      .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes, last_fetched_at, last_success_at, last_error")
+      .order("priority");
+    if (!full.error) return (full.data ?? []) as NewsSource[];
+    const basic = await context.supabase
       .from("news_sources")
       .select("id, name, homepage_url, rss_url, api_url, category_slug, active, trust_level, priority, notes")
       .order("priority");
-    if (error) throw new Error(error.message);
-    return (data ?? []) as NewsSource[];
+    if (basic.error) throw new Error(basic.error.message);
+    return (basic.data ?? []) as NewsSource[];
   });
 
 export const saveNewsSource = createServerFn({ method: "POST" })
