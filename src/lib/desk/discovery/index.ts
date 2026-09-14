@@ -1,8 +1,2 @@
-import { gdeltProvider } from "./gdelt";
-import type { DiscoveryProvider } from "./types";
-
-export function getDiscoveryProvider(): DiscoveryProvider {
-  return gdeltProvider;
-}
-
-export type { DiscoveryHit, DiscoveryProvider } from "./types";
+export { searchGdelt, storyQueryFromTitle } from "./gdelt";
+export type { DiscoveryDiagnostic, DiscoveryHit, DiscoverySearchResult } from "./types";
