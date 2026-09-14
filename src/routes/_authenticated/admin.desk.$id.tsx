@@ -6,18 +6,34 @@ import { toast } from "sonner";
 import { getDeskStoryDetail, prepareResearch } from "@/lib/desk/research.functions";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const Route = createFileRoute("/_authenticated/admin/desk/$id")({
   head: () => ({ meta: [{ title: "Story research — The Connect" }, { name: "robots", content: "noindex" }] }),
   component: StoryDetailPage,
 });
 
 function StoryDetailPage() {
-  const { id } = Route.useParams();
+  const params = Route.useParams();
+  const id = params.id;
   const queryClient = useQueryClient();
   const load = useServerFn(getDeskStoryDetail);
   const research = useServerFn(prepareResearch);
   const [busy, setBusy] = useState(false);
-  const detail = useQuery({ queryKey: ["desk-story", id], queryFn: () => load({ data: { id } }) });
+  const valid = UUID.test(id);
+  const detail = useQuery({
+    queryKey: ["desk-story", id],
+    enabled: valid,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return await load({ data: { id } });
+      } catch (err) {
+        console.error("desk story detail failed", id, err);
+        throw err;
+      }
+    },
+  });
 
   async function prepare() {
     setBusy(true);
@@ -26,16 +42,41 @@ function StoryDetailPage() {
       toast.success("Research packet ready · " + out.provider);
       await queryClient.invalidateQueries({ queryKey: ["desk-story", id] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Research failed. Run 003 SQL if tables are missing.");
+      console.error("prepare research failed", id, err);
+      toast.error(err instanceof Error ? err.message : "Research failed");
     } finally {
       setBusy(false);
     }
   }
 
-  if (detail.isLoading) return <p className="mx-auto max-w-5xl px-4 py-16">Loading…</p>;
-  if (detail.isError || !detail.data) {
-    return <p className="mx-auto max-w-5xl px-4 py-16 text-destructive">{detail.error instanceof Error ? detail.error.message : "Not found"}</p>;
+  if (!valid) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <p className="text-destructive">Invalid story ID.</p>
+        <a href="/admin/desk" className="mt-4 inline-block text-primary hover:underline">Back to Story Monitor</a>
+      </div>
+    );
   }
+
+  if (detail.isLoading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <p>Loading story detail…</p>
+        <a href="/admin/desk" className="mt-4 inline-block text-sm text-primary hover:underline">Back to Story Monitor</a>
+      </div>
+    );
+  }
+
+  if (detail.isError || !detail.data) {
+    const message = detail.error instanceof Error ? detail.error.message : "Story not found";
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <p className="text-destructive">{message}</p>
+        <a href="/admin/desk" className="mt-4 inline-block text-primary hover:underline">Back to Story Monitor</a>
+      </div>
+    );
+  }
+
   const { story, sources, claims, facts } = detail.data;
   const packet = story.research_packet;
 
@@ -47,7 +88,7 @@ function StoryDetailPage() {
           <button type="button" disabled={busy} onClick={() => void prepare()} className="bg-primary px-4 py-2 text-primary-foreground disabled:opacity-60">
             {busy ? "Preparing…" : "Prepare Research"}
           </button>
-          <a href="/admin/desk" className="border border-border px-3 py-2">Monitor</a>
+          <a href="/admin/desk" className="border border-border px-3 py-2">Back to Story Monitor</a>
         </div>
       </div>
 
