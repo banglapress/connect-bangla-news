@@ -7,7 +7,19 @@ export type DiscoveryHit = {
   provider: string;
 };
 
-export interface DiscoveryProvider {
-  name: string;
-  searchRelated(input: { title: string; urls: string[] }): Promise<DiscoveryHit[]>;
-}
+export type DiscoveryDiagnostic = {
+  label: string;
+  query: string;
+  requestUrl: string;
+  provider: string;
+  status: number | null;
+  resultCount: number;
+  durationMs: number;
+  error: string | null;
+  bodyPreview: string | null;
+};
+
+export type DiscoverySearchResult = {
+  hits: DiscoveryHit[];
+  diagnostics: DiscoveryDiagnostic[];
+};
