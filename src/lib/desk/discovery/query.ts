@@ -1,3 +1,4 @@
+import { extractDiscoveryEntities, type DiscoveryEntities } from "./entities";
 import type { DiscoveryQuery } from "./types";
 
 const MAX_QUERIES = 4;
@@ -177,16 +178,22 @@ function quote(phrase: string) {
 export type QueryBuildResult = {
   queries: DiscoveryQuery[];
   entities: string[];
+  structured: DiscoveryEntities;
   phrases: string[];
   tokens: string[];
 };
 
 export function buildDiscoveryQueries(title: string, excerpt = ""): QueryBuildResult {
-  const original = nfc(`${title} ${excerpt}`.trim());
-  const items = contentTokens(title);
+  const headline = nfc(String(title || "").trim()) || nfc(String(excerpt || "").trim()).split(/[\n।.!?]/)[0] || "";
+  const original = nfc(`${headline} ${excerpt || ""}`.trim());
+  const items = contentTokens(headline || excerpt);
   const tokens = unique(items.map((row) => row.base));
-  const phrases = unique(phrasesFrom(title));
+  const phrases = unique(phrasesFrom(headline));
+  const structured = extractDiscoveryEntities(headline, excerpt);
   const entities = unique([
+    ...structured.people,
+    ...structured.organizations,
+    ...structured.institutions,
     ...phrases,
     ...tokens.filter((token) => token.length >= 3),
   ]).slice(0, 8);
@@ -234,8 +241,8 @@ export function buildDiscoveryQueries(title: string, excerpt = ""): QueryBuildRe
     const fallback = fallbackTokens.join(" ");
     if (fallback && !isGenericQuery(fallback) && !looksGarbledQuery(fallback, original)) {
       push(fallback, "bn", "entity");
-    } else if (title.trim()) {
-      const clipped = nfc(stripPunctuation(title)).split(" ").slice(0, 6).join(" ");
+    } else if (headline.trim()) {
+      const clipped = nfc(stripPunctuation(headline)).split(" ").slice(0, 6).join(" ");
       if (clipped && !looksGarbledQuery(clipped, original) && !isGenericQuery(clipped)) {
         push(clipped, "bn", "entity");
       }
@@ -245,6 +252,7 @@ export function buildDiscoveryQueries(title: string, excerpt = ""): QueryBuildRe
   return {
     queries: drafted.slice(0, MAX_QUERIES),
     entities,
+    structured,
     phrases,
     tokens,
   };
