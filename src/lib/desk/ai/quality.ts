@@ -9,11 +9,11 @@ import type {
 } from "./types";
 import type { SourceUtilization } from "./source-content";
 
-export const DEPTH_TARGETS: Record<ArticleDepth, { min: number; max: number; label: string }> = {
-  brief: { min: 350, max: 500, label: "Brief" },
-  standard: { min: 600, max: 900, label: "Standard" },
-  detailed: { min: 900, max: 1300, label: "Detailed" },
-  comprehensive: { min: 1200, max: 1800, label: "Comprehensive" },
+export const DEPTH_TARGETS: Record<ArticleDepth, { min: number; max: number; label: string; aim: number }> = {
+  brief: { min: 350, max: 500, label: "Brief", aim: 400 },
+  standard: { min: 600, max: 900, label: "Standard", aim: 750 },
+  detailed: { min: 900, max: 1300, label: "Detailed", aim: 1050 },
+  comprehensive: { min: 1200, max: 1800, label: "Comprehensive", aim: 1500 },
 };
 
 export function parseArticleDepth(value: unknown): ArticleDepth {
@@ -85,6 +85,25 @@ export function articleQualityReport(input: {
   if (singleCount) warnings.push({ code: "single_source", message: "⚠ Single-source claim present — not independently verified" });
   if (structured?.unverified_claims.length) warnings.push({ code: "needs_verification", message: "⚠ Needs verification" });
   if (!body || word_count < 80) warnings.push({ code: "unsupported", message: "⚠ Article body is too thin for publication" });
+  const target = DEPTH_TARGETS[input.depth];
+  const dossierHasMaterial =
+    richSources >= 1 ||
+    uniqueFactCount >= 3 ||
+    (structured?.detailed_facts || structured?.key_facts || []).length >= 6 ||
+    quoteCount >= 1;
+  const below_target = word_count < target.min;
+  const far_below_target = word_count < Math.round(target.aim * 0.45);
+  if ((dossierHasMaterial || input.depth !== "brief") && far_below_target) {
+    warnings.push({
+      code: "unsupported",
+      message: `⚠ Article is ${word_count} words; selected ${target.label} depth targets about ${target.aim} words (${target.min}–${target.max}). Use more supported dossier detail rather than stopping after a short recap.`,
+    });
+  } else if (below_target && input.depth !== "brief") {
+    warnings.push({
+      code: "unsupported",
+      message: `⚠ Article is below the ${target.label} range (${word_count} words vs ${target.min}–${target.max}).`,
+    });
+  }
   if (richSources === 0) {
     warnings.push({
       code: "limited_content",
@@ -144,14 +163,36 @@ export function articleQualityReport(input: {
       unsupported_claim_count: unique.filter((row) => row.code === "unsupported").length,
       article_word_count: word_count,
       article_depth: input.depth,
+      requested_depth: input.depth,
+      target_word_count: target.aim,
+      actual_word_count: word_count,
+      below_target,
+      quality_status: article_status,
     },
   };
 }
 
-export function packDossierForPrompt(research: StructuredResearch | ResearchPacket, maxChars = 20000) {
+export function packDossierForPrompt(research: StructuredResearch | ResearchPacket, maxChars = 28000) {
   const structured = structuredOf(research);
-  if (!structured) return { packed: JSON.stringify(research).slice(0, maxChars), truncated: JSON.stringify(research).length > maxChars };
-  const ordered = {
+  if (!structured) {
+    const raw = JSON.stringify(research);
+    return { packed: raw.slice(0, maxChars), truncated: raw.length > maxChars };
+  }
+  const notes = Array.isArray(structured.source_notes) ? structured.source_notes : [];
+  const slimNotes = notes.map((note: any) => ({
+    source_row_id: note.source_row_id,
+    source_name: note.source_name,
+    url: note.url,
+    available_content_level: note.available_content_level,
+    original_title: note.original_title,
+    main_event: note.main_event,
+    unique_information: note.unique_information,
+    quotes: note.quotes,
+    numbers: note.numbers,
+    detailed_facts: Array.isArray(note.detailed_facts) ? note.detailed_facts.slice(0, 12) : undefined,
+    missing_information: note.missing_information,
+  }));
+  const ordered: Record<string, unknown> = {
     executive_summary: structured.executive_summary || structured.summary,
     what_happened: structured.what_happened || structured.summary,
     unique_details: structured.unique_details || [],
@@ -171,12 +212,27 @@ export function packDossierForPrompt(research: StructuredResearch | ResearchPack
     source_agreements: structured.source_agreements,
     source_conflicts: structured.source_conflicts,
     unverified_claims: structured.unverified_claims,
+    source_notes: slimNotes,
     missing_information: structured.missing_information || [],
     warnings: structured.warnings,
     source_utilization: structured.source_utilization || [],
     truncated: structured.truncated === true,
   };
-  const packed = JSON.stringify(ordered);
+  let packed = JSON.stringify(ordered);
   if (packed.length <= maxChars) return { packed, truncated: structured.truncated === true };
+  delete ordered.source_utilization;
+  delete ordered.warnings;
+  packed = JSON.stringify(ordered);
+  if (packed.length <= maxChars) return { packed, truncated: true };
+  ordered.source_notes = slimNotes.map((note: any) => ({
+    source_row_id: note.source_row_id,
+    source_name: note.source_name,
+    unique_information: note.unique_information,
+    quotes: note.quotes,
+    numbers: note.numbers,
+    main_event: note.main_event,
+  }));
+  packed = JSON.stringify(ordered);
+  if (packed.length <= maxChars) return { packed, truncated: true };
   return { packed: packed.slice(0, maxChars), truncated: true };
 }

@@ -140,7 +140,11 @@ export const ARTICLE_JSON_SCHEMA = {
   properties: {
     title: { type: "string" },
     excerpt: { type: "string" },
-    body: { type: "string", description: "Original Bangla article. Paragraphs separated by blank lines." },
+    body: {
+      type: "string",
+      description:
+        "Complete original Bangla article. Paragraphs separated by blank lines. Length must follow the requested depth target when the dossier supports it. Do not return only a short recap.",
+    },
     seo_title: { type: "string" },
     meta_description: { type: "string" },
     tags: { type: "array", items: { type: "string" } },
