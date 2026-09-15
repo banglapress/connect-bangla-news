@@ -77,6 +77,20 @@ function recencyScore(publishedAt: string | null) {
   return 0.2;
 }
 
+function emptyEntities(): DiscoveryEntities {
+  return {
+    people: [],
+    organizations: [],
+    locations: [],
+    institutions: [],
+    events: [],
+    phrases: [],
+    tokens: [],
+    aliases: [],
+    topic: [],
+  };
+}
+
 function coreConcepts(entities: DiscoveryEntities) {
   return conceptGroups([
     ...entities.people,
@@ -116,11 +130,12 @@ export function scoreDiscoveryHit(input: {
 }): number {
   const hay = hayOf(input.title, input.snippet);
   const tokens = hayTokenSet(input.title, input.snippet);
-  const phrase = phraseScore(input.entities.phrases, hay);
-  const people = conceptRate(input.entities.people, hay, tokens);
-  const orgs = conceptRate([...input.entities.organizations, ...input.entities.institutions], hay, tokens);
-  const places = conceptRate(input.entities.locations, hay, tokens);
-  const event = eventScore(input.entities.events, hay, tokens);
+  const entities = input.entities || emptyEntities();
+  const phrase = phraseScore(entities.phrases || [], hay);
+  const people = conceptRate(entities.people || [], hay, tokens);
+  const orgs = conceptRate([...(entities.organizations || []), ...(entities.institutions || [])], hay, tokens);
+  const places = conceptRate(entities.locations || [], hay, tokens);
+  const event = eventScore(entities.events || [], hay, tokens);
   const overlap = tokenRecall(input.storyTitle, input.title);
   const recent = recencyScore(input.publishedAt);
   const trusted = isTrustedDiscoveryDomain(input.domain || input.url) ? 1 : 0;
@@ -135,13 +150,13 @@ export function scoreDiscoveryHit(input: {
     0.05 * places +
     0.03 * trusted;
 
-  const floor = coreSameEventBoost(input.entities, hay, tokens, overlap);
+  const floor = coreSameEventBoost(entities, hay, tokens, overlap);
   return Math.max(0, Math.min(1, Number(Math.max(raw, floor).toFixed(3))));
 }
 
 export function decorateHit(
   hit: Omit<DiscoveryHit, "relevance"> & { relevance?: number },
-  context: { storyTitle: string; entities: DiscoveryEntities },
+  context: { storyTitle: string; entities?: DiscoveryEntities | null },
 ): DiscoveryHit {
   const relevance = scoreDiscoveryHit({
     title: hit.title,
@@ -150,7 +165,7 @@ export function decorateHit(
     domain: hit.domain,
     publishedAt: hit.publishedAt,
     storyTitle: context.storyTitle,
-    entities: context.entities,
+    entities: context.entities || emptyEntities(),
   });
   return { ...hit, relevance };
 }
