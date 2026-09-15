@@ -196,6 +196,11 @@ export type QualityMetrics = {
   unsupported_claim_count: number;
   article_word_count: number;
   article_depth: ArticleDepth;
+  requested_depth?: ArticleDepth;
+  target_word_count?: number;
+  actual_word_count?: number;
+  below_target?: boolean;
+  quality_status?: ArticleStatus;
 };
 
 export type EditorialValidation = {
@@ -213,4 +218,4 @@ export interface AIProvider {
   summarizeTopic(sources: SourcePacket[]): Promise<string>;
   generateResearch(input: ResearchInput): Promise<StructuredResearch>;
   generateArticle(input: ArticleInput): Promise<GeneratedArticle>;
-}
+};
