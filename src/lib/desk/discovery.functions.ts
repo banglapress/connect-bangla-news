@@ -33,13 +33,24 @@ export const findRelatedCoverage = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ storyId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const story = await context.supabase.from("desk_stories").select("id, title_hint").eq("id", data.storyId).maybeSingle();
+    const story = await context.supabase
+      .from("desk_stories")
+      .select("id, title_hint, draft_title")
+      .eq("id", data.storyId)
+      .maybeSingle();
     if (!story.data) throw new Error("Story not found");
-    const links = await context.supabase.from("desk_story_sources").select("url, excerpt, title").eq("story_id", data.storyId);
+    const links = await context.supabase.from("desk_story_sources").select("url, excerpt, title, raw_text").eq("story_id", data.storyId);
     const urls = (links.data ?? []).map((row: { url: string }) => row.url);
-    const excerpt = (links.data ?? []).map((row: { excerpt?: string; title?: string }) => row.excerpt || row.title || "").join(" ");
+    const excerpt = (links.data ?? [])
+      .map((row: { excerpt?: string; title?: string; raw_text?: string }) => row.excerpt || row.raw_text || row.title || "")
+      .join(" ");
+    const title =
+      String(story.data.title_hint || "").trim() ||
+      String(story.data.draft_title || "").trim() ||
+      String(links.data?.[0]?.title || "").trim() ||
+      excerpt.replace(/\s+/g, " ").trim().slice(0, 180);
     const result = await discoverRelatedCoverage({
-      title: story.data.title_hint || "",
+      title,
       excerpt,
       knownUrls: urls,
     });
