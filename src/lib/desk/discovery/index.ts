@@ -1,4 +1,5 @@
 import { buildDiscoveryQueries } from "./query";
+import { extractDiscoveryEntities } from "./entities";
 import { googleNewsProvider } from "./google-news";
 import { gdeltProvider } from "./gdelt";
 import { decorateHit, developmentKey, isMeaningfulHit, titleSimilarity } from "./score";
@@ -89,26 +90,29 @@ export async function discoverRelatedCoverage(input: {
   excerpt?: string;
   knownUrls: string[];
 }): Promise<DiscoverySearchResult & { queries: string[] }> {
-  const built = buildDiscoveryQueries(input.title, input.excerpt || "");
+  const title = String(input.title || "").trim();
+  const excerpt = String(input.excerpt || "").trim();
+  const built = buildDiscoveryQueries(title, excerpt);
+  const structured = built.structured || extractDiscoveryEntities(title, excerpt);
   const context = {
-    storyTitle: input.title,
+    storyTitle: title,
     entities: built.entities,
-    phrases: built.phrases,
+    phrases: built.phrases || structured.phrases || [],
     knownUrls: input.knownUrls,
     trustedDomains: [...TRUSTED_DISCOVERY_DOMAINS],
-    structured: built.structured,
+    structured,
   };
 
   const primary = await googleNewsProvider.search(built.queries, context);
   const diagnostics: DiscoveryDiagnostic[] = [...primary.diagnostics];
   let provider = "google_news";
-  let merged = primary.hits.map((hit) => decorateHit(hit, { storyTitle: input.title, entities: built.structured }));
+  let merged = primary.hits.map((hit) => decorateHit(hit, { storyTitle: title, entities: structured }));
 
   const meaningful = merged.filter(isMeaningfulHit);
   if (meaningful.length < 2) {
     const fallback = await gdeltProvider.search(built.queries, context);
     diagnostics.push(...fallback.diagnostics);
-    merged = [...merged, ...fallback.hits.map((hit) => decorateHit(hit, { storyTitle: input.title, entities: built.structured }))];
+    merged = [...merged, ...fallback.hits.map((hit) => decorateHit(hit, { storyTitle: title, entities: structured }))];
     provider = "google_news+gdelt";
   }
 
