@@ -50,5 +50,5 @@ export async function composeCoverWithLogo(input: {
 }
 
 export async function composeSocialCover(photoSrc: string, logoSrc?: string | null) {
-  return composeCoverWithLogo({ photoSrc, logoSrc, width: 1080, height: 1350 });
+  return composeCoverWithLogo({ photoSrc, logoSrc: logoSrc ?? SITE_LOGO_SRC, width: 1080, height: 1350 });
 }
