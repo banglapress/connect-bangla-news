@@ -11,7 +11,7 @@ import {
 import { composeCoverWithLogo, composeSocialCover, SITE_LOGO_SRC } from "@/lib/desk/cover-compose";
 import { proxyDeskImage } from "@/lib/desk/social.functions";
 
-export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string; articleReady: boolean }) {
+export function DeskCoverImagePanel({ storyId, articleReady, onApplied }: { storyId: string; articleReady: boolean; onApplied?: (url: string) => void }) {
   const queryClient = useQueryClient();
   const load = useServerFn(listDeskCoverImages);
   const generate = useServerFn(generateDeskCoverImage);
@@ -82,7 +82,7 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
       const composed = preview || (sourceUrl ? await makePreview(sourceUrl, latest) : null);
       if (!composed) throw new Error("No composed cover to save");
       const social = sourceUrl ? await composeSocialCover(await photoSrc(sourceUrl), SITE_LOGO_SRC) : composed;
-      await select({
+      const applied = await select({
         data: {
           id: storyId,
           imageId: latest,
@@ -92,6 +92,7 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
         },
       });
       toast.success("Cover sent to the article draft featured image");
+      if (applied?.imageUrl) onApplied?.(applied.imageUrl);
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not apply cover image");
@@ -118,6 +119,9 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
       </div>
       {state.data?.migrationNeeded ? (
         <p className="mt-3 text-destructive">Run migration 010_cover_images.sql so cover generations can be stored.</p>
+      ) : null}
+      {!articleReady ? (
+        <p className="mt-3 text-xs text-muted-foreground">Generate the AI article first. You can also generate the cover from the draft editor after opening the draft.</p>
       ) : null}
       {!state.data?.configured ? (
         <p className="mt-3 text-destructive">
@@ -171,7 +175,7 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
                 onClick={() => row.image_url && makePreview(row.image_url, row.id)}
               >
                 {row.image_url ? <img src={row.image_url} alt="" className="mb-2 h-24 w-full object-cover" /> : null}
-                <p className="text-[11px]">{row.generation_status}{row.provider ? ` · ${row.provider}` : ""}</p>
+                <p className="text-[11px]">{row.generation_status}{row.provider ? ` \u00b7 ${row.provider}` : ""}</p>
                 {row.error_message ? <p className="text-[11px] text-destructive">{row.error_message}</p> : null}
               </button>
             ))}
