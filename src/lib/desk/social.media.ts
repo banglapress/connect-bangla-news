@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
-import { uploadCardImage } from "@/lib/desk/social.functions";
+import { bytesFromDataUrl, uploadCardImage } from "./social.helpers";
+
+export { bytesFromDataUrl };
 
 export const proxyDeskImage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -23,15 +25,13 @@ export const proxyDeskImage = createServerFn({ method: "GET" })
 export const saveDeskCard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        dataUrl: z.string().min(32),
-        ratio: z.enum(["1:1", "4:5"]),
-        headline: z.string().optional(),
-        support: z.string().optional(),
-      })
-      .parse(data),
+    z.object({
+      id: z.string().uuid(),
+      dataUrl: z.string().min(32),
+      ratio: z.enum(["1:1", "4:5"]),
+      headline: z.string().optional(),
+      support: z.string().optional(),
+    }).parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
@@ -46,15 +46,12 @@ export const saveDeskCard = createServerFn({ method: "POST" })
     };
     const saved = await context.supabase.from("desk_stories").update(patch).eq("id", data.id);
     if (saved.error && /column|schema cache|card_/i.test(saved.error.message)) {
-      const fallback = await context.supabase
-        .from("desk_stories")
-        .update({
-          card_image_url: url,
-          card_headline: data.headline || null,
-          card_support: data.support || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", data.id);
+      const fallback = await context.supabase.from("desk_stories").update({
+        card_image_url: url,
+        card_headline: data.headline || null,
+        card_support: data.support || null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", data.id);
       if (fallback.error) throw new Error(fallback.error.message);
     } else if (saved.error) {
       throw new Error(saved.error.message);
