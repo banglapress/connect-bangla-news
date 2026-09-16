@@ -15,7 +15,7 @@ import type { CardRatio } from "@/lib/desk/card/template";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { DeskCoverImagePanel } from "@/components/desk-cover-image-panel";
 
-export function DeskSocialPanel({ storyId }: { storyId: string }) {
+export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; articleReady?: boolean }) {
   const queryClient = useQueryClient();
   const load = useServerFn(getSocialDeskState);
   const saveCard = useServerFn(saveDeskCard);
@@ -34,6 +34,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
   const [caption, setCaption] = useState("");
   const [ratio, setRatio] = useState<CardRatio>("4:5");
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const coverReady = articleReady ?? Boolean(social.data?.articleId);
 
   useEffect(() => {
     if (!social.data) return;
@@ -47,6 +48,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["desk-social", storyId] });
     await queryClient.invalidateQueries({ queryKey: ["desk-story", storyId] });
+    await queryClient.invalidateQueries({ queryKey: ["desk-cover", storyId] });
   }
 
   async function photoSource() {
@@ -105,7 +107,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
   if (social.isLoading) {
     return (
       <>
-        <DeskCoverImagePanel storyId={storyId} articleReady />
+        <DeskCoverImagePanel storyId={storyId} articleReady={coverReady} />
         <p className="text-sm text-muted-foreground">Loading social publishing…</p>
       </>
     );
@@ -113,7 +115,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
   if (social.isError || !social.data) {
     return (
       <>
-        <DeskCoverImagePanel storyId={storyId} articleReady />
+        <DeskCoverImagePanel storyId={storyId} articleReady={coverReady} />
         <p className="text-sm text-destructive">
           {social.error instanceof Error ? social.error.message : "Social tools unavailable"}
         </p>
@@ -125,7 +127,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
 
   return (
     <>
-    <DeskCoverImagePanel storyId={storyId} articleReady={Boolean(social.data.articleId)} />
+    <DeskCoverImagePanel storyId={storyId} articleReady={coverReady || Boolean(social.data.articleId)} />
     <section className="mb-8 border border-border p-4 text-sm">
       <h2 className="font-serif text-lg font-bold">Social Publishing</h2>
       <p className="mt-1 text-xs text-muted-foreground">
