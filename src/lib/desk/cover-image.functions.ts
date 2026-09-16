@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { publicImageUrl } from "@/lib/image";
-import { COVER_PROMPT_VERSION, buildCoverPrompt } from "@/lib/desk/ai/cover-image";
+import { COVER_PROMPT_VERSION, buildCoverPrompt, buildSafeCoverPrompt } from "@/lib/desk/ai/cover-image";
 import {
   coverImageConfigured,
   coverImageModelId,
@@ -119,7 +119,7 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
     const headline = article?.title || story.draft_title || story.title_hint || "";
     const body = article?.body || story.draft_body || "";
     const excerpt = article?.excerpt || story.draft_excerpt || "";
-    if (!headline.trim() || (!body.trim() && !excerpt.trim())) throw new Error("Generate the article first so the cover can use article content");
+    if (!headline.trim() && !body.trim() && !excerpt.trim()) throw new Error("Generate the article first so the cover can use article content");
     generating.add(data.id);
     const pending = await context.supabase.from("desk_story_images").insert({
       story_id: data.id,
@@ -148,7 +148,14 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
     });
     const started = Date.now();
     try {
-      const image = await generateCoverImageBytes(prompt);
+      const image = await generateCoverImageBytes(prompt, buildSafeCoverPrompt({
+        headline,
+        excerpt,
+        body,
+        category: article?.category_slug || story.category_slug || "",
+        tags: article?.tags || story.tags || [],
+        places: (structured.places || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
+      }));
       const uploaded = await uploadBytes(context.supabase, data.id, image.mime, Buffer.from(image.base64, "base64"), "base");
       const websiteUrl = cloudinaryFit(uploaded.url, 1600, 900) || uploaded.url;
       const socialUrl = cloudinaryFit(uploaded.url, 1080, 1350) || uploaded.url;
@@ -272,6 +279,16 @@ export const reuseDeskCoverImage = createServerFn({ method: "POST" })
       await context.supabase.from("articles").update({ image_url: websiteUrl, image_urls: [websiteUrl, ...existingUrls.filter((url: string) => url !== websiteUrl)] }).eq("id", story.article_id);
     }
     return { ok: true, imageUrl: websiteUrl, socialUrl };
+  });
+
+export const resolveDeskStoryForArticle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ articleId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
+    const found = await context.supabase.from("desk_stories").select("id, article_id, draft_title, draft_body").eq("article_id", data.articleId).maybeSingle();
+    if (found.error) throw new Error(found.error.message);
+    return { storyId: found.data?.id || null };
   });
 
 export function facebookImageFromStory(story: any, article: any) {
