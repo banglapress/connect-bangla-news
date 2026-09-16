@@ -9,6 +9,7 @@ import { listWriters } from "@/lib/writer.functions";
 import { slugifyBangla } from "@/lib/bangla";
 import { uploadNewsImage } from "@/lib/upload-image";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
+import { DraftCoverImage } from "@/components/draft-cover-image";
 
 export type EditorValues = {
   id?: string;
@@ -197,6 +198,18 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
           <input className={inputClass} value={values.tags} onChange={(e) => set("tags", e.target.value)} />
         </div>
       </div>
+      {values.id ? (
+        <DraftCoverImage
+          articleId={values.id}
+          onApplied={(url) =>
+            setValues((v) => ({
+              ...v,
+              image_url: url,
+              image_urls: [url, ...(v.image_urls ?? []).filter((item) => item !== url)],
+            }))
+          }
+        />
+      ) : null}
       <div className="border border-border p-4">
         <label className="mb-2 block text-sm font-medium">ছবি (একাধিক)</label>
         <p className="mb-3 text-xs text-muted-foreground">প্রথম ছবি কভার। নির্দিষ্ট জায়গায় দেখাতে “লেখায় বসাও” চাপুন।</p>
