@@ -101,3 +101,46 @@ function fallbackCaption(input: { headline: string; excerpt: string; url: string
   if (tags.length) lines.push(tags.join(" "));
   return lines.filter(Boolean).join("\n\n");
 }
+
+export const getSocialDeskState = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
+    const { story, article } = await loadStoryBundle(context.supabase, data.id);
+    const template = await readCardTemplate(context.supabase);
+    const fb = facebookPublicStatus();
+    const imageUrl = publicImageUrl(article?.image_url || story.card_image_url) || article?.image_url || null;
+    const storedStatus = String(story.facebook_status || "");
+    const facebookStatus =
+      storedStatus === "published" || storedStatus === "failed"
+        ? storedStatus
+        : fb.configured
+          ? "ready"
+          : "not_configured";
+    return {
+      storyId: story.id,
+      articleId: story.article_id,
+      articleStatus: article?.status || null,
+      headline: headlineOf(story, article),
+      support: supportLine(story, article),
+      category: categoryName(article?.category_slug || story.category_slug || "national"),
+      dateLabel: formatBanglaDate(article?.published_at || story.article_generated_at || story.updated_at),
+      photoUrl: imageUrl,
+      cardImageUrl: publicImageUrl(story.card_image_url) || story.card_image_url || null,
+      cardRatio: (story.card_ratio === "1:1" ? "1:1" : template.ratio) as CardRatio,
+      cardGeneratedAt: story.card_generated_at || null,
+      caption: story.social_caption || "",
+      articleUrl: articlePublicUrl(article),
+      template,
+      facebook: {
+        status: facebookStatus,
+        configured: fb.configured,
+        pageIdMasked: maskPageId(fb.pageId),
+        pageName: story.facebook_page_name || fb.pageName,
+        postId: story.facebook_post_id || null,
+        publishedAt: story.facebook_published_at || null,
+        error: story.facebook_error || null,
+      },
+    };
+  });
