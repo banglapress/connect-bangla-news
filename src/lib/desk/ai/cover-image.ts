@@ -1,5 +1,5 @@
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
-export const COVER_PROMPT_VERSION = "cover-v1";
+export const COVER_PROMPT_VERSION = "cover-v2";
 
 const RETIRED_IMAGE_MODELS = new Set(["gemini-2.0-flash-preview-image-generation"]);
 
@@ -45,34 +45,48 @@ function clip(value: string, max: number) {
   return text.slice(0, max).trim();
 }
 
+function stripScripts(value: string) {
+  return value
+    .replace(/[\u0980-\u09FF\u0900-\u097F\u0600-\u06FF]+/g, " ")
+    .replace(/["'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function visualHints(input: CoverArticleContext) {
+  const places = (input.places || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 4);
+  const orgs = (input.organisations || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 3);
+  const tags = (input.tags || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 5);
+  const category = stripScripts(String(input.category || "")).replace(/[-_]/g, " ");
+  return { places, orgs, tags, category };
+}
+
 export function buildCoverPrompt(input: CoverArticleContext) {
-  const facts = (input.facts || []).filter(Boolean).slice(0, 8).join("; ");
-  const places = (input.places || []).filter(Boolean).slice(0, 6).join(", ");
-  const orgs = (input.organisations || []).filter(Boolean).slice(0, 6).join(", ");
-  const entities = (input.entities || []).filter(Boolean).slice(0, 8).join(", ");
-  const tags = (input.tags || []).filter(Boolean).slice(0, 8).join(", ");
+  const hints = visualHints(input);
+  const subject = [hints.category, ...hints.places, ...hints.orgs, ...hints.tags].filter(Boolean).slice(0, 8).join(", ");
   return [
-    "Create one editorial news cover photograph-illustration for a professional news website.",
-    "Style: minimalist, clean, modern, visually intelligent, cinematic lighting, high production value.",
-    "Communicate the CENTRAL VISUAL IDEA of the story through the scene itself.",
-    "NO text, letters, numbers, captions, headlines, watermarks, logos, newspaper mastheads, fake documents with readable text, screenshots, collages, quote cards, or infographics.",
-    "Do not invent a photograph of a real public figure as if it were documentary coverage of the event.",
-    "Treat the result as an editorial visualization, not a fake wire photo.",
-    "No gore, no gratuitous violence, no fabricated organisational logos.",
-    "Leave a quiet, uncluttered lower-left area so a small brand mark can be overlaid later.",
-    "Aspect: wide landscape 16:9 news cover.",
-    `Headline (do not render this text in the image): ${clip(input.headline || "", 220)}`,
-    input.category ? `Category: ${input.category}` : "",
-    tags ? `Tags: ${tags}` : "",
-    places ? `Places: ${places}` : "",
-    orgs ? `Organisations: ${orgs}` : "",
-    entities ? `Entities: ${entities}` : "",
-    facts ? `Key facts: ${clip(facts, 900)}` : "",
-    input.excerpt ? `Summary: ${clip(input.excerpt, 500)}` : "",
-    input.body ? `Article context: ${clip(input.body, 1800)}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    "Create one wordless editorial news photograph for a serious newspaper website.",
+    "Minimalist, clean, professional, one clear scene, natural light, no collage.",
+    "Show the idea of the story through objects, place and atmosphere only.",
+    "NO TEXT of any kind: no letters, numbers, captions, headlines, UI, watermarks, mastheads, newspapers, documents, screens, signboards with writing.",
+    "NO Bangla, NO Hindi, NO Devanagari, NO Arabic, NO English words in the picture.",
+    "NO logo, NO brand mark, NO fake newspaper nameplate, NO 'The Connect', NO corner badge.",
+    "Do not invent a photograph of a real public figure.",
+    "Do not fill the frame with a giant isolated object.",
+    "Wide landscape 16:9.",
+    subject ? `Visual subject hints (do not render these words): ${clip(subject, 280)}` : "Visual subject: contemporary civic scene in Bangladesh, restrained and specific.",
+  ].join("\n");
+}
+
+export function buildSafeCoverPrompt(input?: CoverArticleContext) {
+  const hints = input ? visualHints(input) : { places: [] as string[], orgs: [] as string[], tags: [] as string[], category: "" };
+  const place = hints.places[0] || hints.category || "a South Asian city";
+  return [
+    "Wordless editorial photograph, 16:9, clean news cover.",
+    `Quiet outdoor civic scene suggesting ${place}.`,
+    "No people faces close up, no text, no letters, no logo, no watermark, no newspaper, no signage with writing.",
+    "Natural daylight, simple composition, uncluttered corners.",
+  ].join(" ");
 }
 
 export type GeminiImageResult = {

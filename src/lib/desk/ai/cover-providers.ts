@@ -142,7 +142,12 @@ export async function generateCloudflareCoverImage(prompt: string, timeoutMs = 9
   }
 }
 
-export async function generateCoverImageBytes(prompt: string): Promise<CoverImageBytes> {
+function isFlagged(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err || "");
+  return /3030|flagged|choose another prompt/i.test(message);
+}
+
+export async function generateCoverImageBytes(prompt: string, fallbackPrompt?: string): Promise<CoverImageBytes> {
   const provider = readCoverImageProvider();
   if (provider === "gemini") {
     const image = await generateGeminiCoverImage(prompt);
@@ -155,5 +160,15 @@ export async function generateCoverImageBytes(prompt: string): Promise<CoverImag
       textNote: image.textNote,
     };
   }
-  return generateCloudflareCoverImage(prompt);
+  try {
+    return await generateCloudflareCoverImage(prompt);
+  } catch (err) {
+    if (fallbackPrompt && isFlagged(err)) {
+      return generateCloudflareCoverImage(fallbackPrompt);
+    }
+    if (isFlagged(err)) {
+      throw new Error("Cloudflare flagged this prompt. Try Regenerate; a safer visual prompt will be used.");
+    }
+    throw err;
+  }
 }
