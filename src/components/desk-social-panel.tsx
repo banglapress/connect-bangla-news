@@ -15,7 +15,7 @@ import type { CardRatio } from "@/lib/desk/card/template";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { DeskCoverImagePanel } from "@/components/desk-cover-image-panel";
 
-export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; articleReady?: boolean }) {
+export function DeskSocialPanel({ storyId }: { storyId: string }) {
   const queryClient = useQueryClient();
   const load = useServerFn(getSocialDeskState);
   const saveCard = useServerFn(saveDeskCard);
@@ -34,7 +34,6 @@ export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; ar
   const [caption, setCaption] = useState("");
   const [ratio, setRatio] = useState<CardRatio>("4:5");
   const [confirmPublish, setConfirmPublish] = useState(false);
-  const coverReady = articleReady ?? Boolean(social.data?.articleId);
 
   useEffect(() => {
     if (!social.data) return;
@@ -107,7 +106,7 @@ export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; ar
   if (social.isLoading) {
     return (
       <>
-        <DeskCoverImagePanel storyId={storyId} articleReady={coverReady} />
+        <DeskCoverImagePanel storyId={storyId} articleReady />
         <p className="text-sm text-muted-foreground">Loading social publishing…</p>
       </>
     );
@@ -115,7 +114,7 @@ export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; ar
   if (social.isError || !social.data) {
     return (
       <>
-        <DeskCoverImagePanel storyId={storyId} articleReady={coverReady} />
+        <DeskCoverImagePanel storyId={storyId} articleReady />
         <p className="text-sm text-destructive">
           {social.error instanceof Error ? social.error.message : "Social tools unavailable"}
         </p>
@@ -127,7 +126,7 @@ export function DeskSocialPanel({ storyId, articleReady }: { storyId: string; ar
 
   return (
     <>
-    <DeskCoverImagePanel storyId={storyId} articleReady={coverReady || Boolean(social.data.articleId)} />
+    <DeskCoverImagePanel storyId={storyId} articleReady />
     <section className="mb-8 border border-border p-4 text-sm">
       <h2 className="font-serif text-lg font-bold">Social Publishing</h2>
       <p className="mt-1 text-xs text-muted-foreground">
