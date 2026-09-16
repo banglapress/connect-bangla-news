@@ -3,13 +3,14 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { publicImageUrl } from "@/lib/image";
+import { COVER_PROMPT_VERSION, buildCoverPrompt } from "@/lib/desk/ai/cover-image";
 import {
-  COVER_PROMPT_VERSION,
-  buildCoverPrompt,
-  generateGeminiCoverImage,
-  geminiImageConfigured,
-  readGeminiImageModel,
-} from "@/lib/desk/ai/cover-image";
+  coverImageConfigured,
+  coverImageModelId,
+  coverImageModelLabel,
+  generateCoverImageBytes,
+  readCoverImageProvider,
+} from "@/lib/desk/ai/cover-providers";
 
 const generating = new Set<string>();
 
@@ -64,6 +65,28 @@ async function loadStoryBundle(supabase: any, id: string) {
   return { story, article };
 }
 
+function listPayload(story: any, article: any, images: any[], extras?: { migrationNeeded?: boolean; generatingFlag?: boolean }) {
+  const reusable = [
+    ...(article?.image_urls || []).map((url: string) => ({ url, source_type: "uploaded" })),
+    ...(images || []).filter((row: any) => row.image_url && row.generation_status === "ok").map((row: any) => ({ url: row.image_url, source_type: row.source_type, id: row.id })),
+  ];
+  const seen = new Set<string>();
+  return {
+    configured: coverImageConfigured(),
+    provider: readCoverImageProvider(),
+    model: coverImageModelId(),
+    modelLabel: coverImageModelLabel(),
+    articleId: story.article_id,
+    articleImageUrl: article?.image_url || null,
+    hasManualImage: Boolean(article?.image_url && !story.cover_image_url),
+    selectedId: story.cover_image_id || null,
+    images,
+    reusable: reusable.filter((row) => row.url && !seen.has(row.url) && seen.add(row.url)),
+    generating: Boolean(extras?.generatingFlag) || generating.has(story.id) || story.cover_status === "generating",
+    migrationNeeded: extras?.migrationNeeded === true,
+  };
+}
+
 export const listDeskCoverImages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
@@ -72,37 +95,10 @@ export const listDeskCoverImages = createServerFn({ method: "GET" })
     const { story, article } = await loadStoryBundle(context.supabase, data.id);
     const images = await context.supabase.from("desk_story_images").select("*").eq("story_id", data.id).order("created_at", { ascending: false });
     if (images.error && /relation|schema cache|desk_story_images/i.test(images.error.message)) {
-      return {
-        configured: geminiImageConfigured(),
-        model: readGeminiImageModel(),
-        articleId: story.article_id,
-        articleImageUrl: article?.image_url || null,
-        hasManualImage: Boolean(article?.image_url),
-        selectedId: story.cover_image_id || null,
-        images: [],
-        reusable: (article?.image_urls || []).filter(Boolean).map((url: string) => ({ url, source_type: "uploaded" })),
-        generating: generating.has(data.id),
-        migrationNeeded: true,
-      };
+      return listPayload(story, article, [], { migrationNeeded: true });
     }
     if (images.error) throw new Error(images.error.message);
-    const reusable = [
-      ...(article?.image_urls || []).map((url: string) => ({ url, source_type: "uploaded" })),
-      ...(images.data || []).filter((row: any) => row.image_url && row.generation_status === "ok").map((row: any) => ({ url: row.image_url, source_type: row.source_type, id: row.id })),
-    ];
-    const seen = new Set<string>();
-    return {
-      configured: geminiImageConfigured(),
-      model: readGeminiImageModel(),
-      articleId: story.article_id,
-      articleImageUrl: article?.image_url || null,
-      hasManualImage: Boolean(article?.image_url && !story.cover_image_url),
-      selectedId: story.cover_image_id || null,
-      images: images.data || [],
-      reusable: reusable.filter((row) => row.url && !seen.has(row.url) && seen.add(row.url)),
-      generating: generating.has(data.id) || story.cover_status === "generating",
-      migrationNeeded: false,
-    };
+    return listPayload(story, article, images.data || []);
   });
 
 export const generateDeskCoverImage = createServerFn({ method: "POST" })
@@ -110,7 +106,14 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    if (!geminiImageConfigured()) throw new Error("GEMINI_API_KEY is not configured");
+    const provider = readCoverImageProvider();
+    if (!coverImageConfigured()) {
+      throw new Error(
+        provider === "gemini"
+          ? "GEMINI_API_KEY is not configured"
+          : "Cloudflare cover credentials missing: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
+      );
+    }
     if (generating.has(data.id)) throw new Error("Cover generation is already running for this story");
     const { story, article } = await loadStoryBundle(context.supabase, data.id);
     const headline = article?.title || story.draft_title || story.title_hint || "";
@@ -121,8 +124,8 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
     const pending = await context.supabase.from("desk_story_images").insert({
       story_id: data.id,
       article_id: story.article_id,
-      provider: "gemini",
-      model: readGeminiImageModel(),
+      provider,
+      model: coverImageModelId(),
       prompt_version: COVER_PROMPT_VERSION,
       source_type: "generated",
       aspect_ratio: "16:9",
@@ -145,12 +148,13 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
     });
     const started = Date.now();
     try {
-      const image = await generateGeminiCoverImage(prompt);
+      const image = await generateCoverImageBytes(prompt);
       const uploaded = await uploadBytes(context.supabase, data.id, image.mime, Buffer.from(image.base64, "base64"), "base");
       const websiteUrl = cloudinaryFit(uploaded.url, 1600, 900) || uploaded.url;
       const socialUrl = cloudinaryFit(uploaded.url, 1080, 1350) || uploaded.url;
       if (rowId) {
         await context.supabase.from("desk_story_images").update({
+          provider: image.provider,
           model: image.model,
           prompt_text: prompt.slice(0, 4000),
           visual_concept: image.textNote,
@@ -163,13 +167,13 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
         }).eq("id", rowId);
       }
       await context.supabase.from("desk_stories").update({ cover_status: "ready", cover_generated_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", data.id);
-      console.info("[cover-image]", { storyId: data.id, provider: "gemini", model: image.model, durationMs: Date.now() - started, aspectRatio: "16:9", status: "ok" });
-      return { ok: true, id: rowId, imageUrl: websiteUrl, socialImageUrl: socialUrl, model: image.model };
+      console.info("[cover-image]", { storyId: data.id, provider: image.provider, model: image.model, durationMs: Date.now() - started, aspectRatio: "16:9", status: "ok" });
+      return { ok: true, id: rowId, imageUrl: websiteUrl, socialImageUrl: socialUrl, model: image.model, provider: image.provider, modelLabel: coverImageModelLabel() };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Cover image generation failed";
       if (rowId) await context.supabase.from("desk_story_images").update({ generation_status: "error", error_message: message.slice(0, 500), updated_at: new Date().toISOString() }).eq("id", rowId);
       await context.supabase.from("desk_stories").update({ cover_status: "error", updated_at: new Date().toISOString() }).eq("id", data.id);
-      console.info("[cover-image]", { storyId: data.id, provider: "gemini", model: readGeminiImageModel(), durationMs: Date.now() - started, status: "error" });
+      console.info("[cover-image]", { storyId: data.id, provider, model: coverImageModelId(), durationMs: Date.now() - started, status: "error" });
       throw new Error(message);
     } finally {
       generating.delete(data.id);

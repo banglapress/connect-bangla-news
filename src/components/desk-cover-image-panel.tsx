@@ -59,7 +59,7 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
     setBusy(true);
     try {
       const out = await generate({ data: { id: storyId } });
-      toast.success("Cover image generated \u00b7 " + out.model);
+      toast.success("Cover image generated \u00b7 " + (out.modelLabel || out.model));
       await refresh();
       await makePreview(out.imageUrl, out.id || null);
     } catch (err) {
@@ -113,14 +113,18 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
           </p>
         </div>
         <span className="border border-border px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-          AI-generated cover image
+          {state.data?.modelLabel || "AI-generated cover image"}
         </span>
       </div>
       {state.data?.migrationNeeded ? (
         <p className="mt-3 text-destructive">Run migration 010_cover_images.sql so cover generations can be stored.</p>
       ) : null}
       {!state.data?.configured ? (
-        <p className="mt-3 text-destructive">GEMINI_API_KEY is not configured on the server.</p>
+        <p className="mt-3 text-destructive">
+          {state.data?.provider === "gemini"
+            ? "GEMINI_API_KEY is not configured on the server."
+            : "Cloudflare cover credentials missing. Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN."}
+        </p>
       ) : null}
       {state.data?.hasManualImage ? (
         <label className="mt-3 flex items-center gap-2 text-xs">
@@ -167,7 +171,7 @@ export function DeskCoverImagePanel({ storyId, articleReady }: { storyId: string
                 onClick={() => row.image_url && makePreview(row.image_url, row.id)}
               >
                 {row.image_url ? <img src={row.image_url} alt="" className="mb-2 h-24 w-full object-cover" /> : null}
-                <p className="text-[11px]">{row.generation_status}</p>
+                <p className="text-[11px]">{row.generation_status}{row.provider ? ` · ${row.provider}` : ""}</p>
                 {row.error_message ? <p className="text-[11px] text-destructive">{row.error_message}</p> : null}
               </button>
             ))}
