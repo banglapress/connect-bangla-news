@@ -1,12 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { toast } from "sonner";
 import { getMyAccess } from "@/lib/admin.functions";
 import { listDeskStories } from "@/lib/desk/stories.functions";
-import { listDeskJobs, runDeskIngest } from "@/lib/desk/ingest.functions";
-import { runDeskAutoDraft } from "@/lib/desk/auto-draft.functions";
+import { listDeskJobs } from "@/lib/desk/ingest.functions";
+import { DeskAutoControls } from "@/components/desk-auto-controls";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
 export const Route = createFileRoute("/_authenticated/admin/desk/")({
@@ -25,63 +23,12 @@ const LABELS: Record<string, string> = {
 };
 
 function DeskPage() {
-  const queryClient = useQueryClient();
   const fetchAccess = useServerFn(getMyAccess);
   const fetchStories = useServerFn(listDeskStories);
   const fetchJobs = useServerFn(listDeskJobs);
-  const ingest = useServerFn(runDeskIngest);
-  const autoDraft = useServerFn(runDeskAutoDraft);
-  const [running, setRunning] = useState(false);
-  const [summary, setSummary] = useState<string | null>(null);
   const access = useQuery({ queryKey: ["access"], queryFn: () => fetchAccess() });
   const stories = useQuery({ queryKey: ["desk-stories"], queryFn: () => fetchStories(), enabled: access.data?.isStaff === true });
   const jobs = useQuery({ queryKey: ["desk-jobs"], queryFn: () => fetchJobs(), enabled: access.data?.isStaff === true });
-
-  async function runAuto() {
-    setRunning(true);
-    setSummary(null);
-    try {
-      const out = await autoDraft({ data: undefined });
-      const text = `Auto draft · ingest ${out.ingest.results.length} sources · stories ${out.processed.length}`;
-      setSummary(text);
-      toast.success(text);
-      await queryClient.invalidateQueries({ queryKey: ["desk-stories"] });
-      await queryClient.invalidateQueries({ queryKey: ["desk-jobs"] });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "অটো ড্রাফট যায়নি";
-      setSummary(message);
-      toast.error(message);
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  async function runNow() {
-    setRunning(true);
-    setSummary(null);
-    try {
-      const out = await ingest({ data: {} });
-      const fetched = out.results.reduce((n, r) => n + r.fetched, 0);
-      const inserted = out.results.reduce((n, r) => n + r.inserted, 0);
-      const clustered = out.results.reduce((n, r) => n + r.clustered, 0);
-      const duplicates = out.results.reduce((n, r) => n + r.duplicates, 0);
-      const skippedOld = out.results.reduce((n, r) => n + r.skippedOld, 0);
-      const errors = out.results.filter((r) => r.error);
-      const text = `Fetched ${fetched} · New ${inserted} · Duplicate ${duplicates} · Skipped (too old) ${skippedOld} · Clustered ${clustered} · Error ${errors.length}`;
-      setSummary(text);
-      toast.success(text);
-      for (const row of errors) toast.error(`${row.sourceName}: ${row.error}`);
-      await queryClient.invalidateQueries({ queryKey: ["desk-stories"] });
-      await queryClient.invalidateQueries({ queryKey: ["desk-jobs"] });
-      await queryClient.invalidateQueries({ queryKey: ["news-sources"] });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "ইনজেস্ট যায়নি";
-      setSummary(message);
-      toast.error(message);
-    } finally {
-      setRunning(false);
-    }
-  }
 
   if (access.isLoading) return <p className="mx-auto max-w-5xl px-4 py-16 text-muted-foreground">অপেক্ষা করুন…</p>;
   if (!access.data?.isStaff) {
@@ -98,18 +45,13 @@ function DeskPage() {
       <div className="section-rule mb-6 flex flex-wrap items-center justify-between gap-3 pb-2">
         <h1 className="font-serif text-2xl font-bold">স্টোরি মনিটর</h1>
         <div className="flex flex-wrap gap-3 text-sm">
-          <button type="button" disabled={running} onClick={() => void runNow()} className="bg-primary px-5 py-2 font-medium text-primary-foreground disabled:opacity-60">
-            {running ? "চলছে…" : "Run Now"}
-          </button>
-          <button type="button" disabled={running} onClick={() => void runAuto()} className="border border-border px-5 py-2 font-medium disabled:opacity-60">
-            Auto Draft Now
-          </button>
           <a href="/admin/desk/sources" className="border border-border px-3 py-2 hover:bg-secondary">সোর্স</a>
           <a href="/admin/desk/settings" className="border border-border px-3 py-2 hover:bg-secondary">সেটিংস</a>
           <Link to="/admin" className="px-3 py-2 text-primary hover:underline">মুখ্য প্যানেল</Link>
         </div>
       </div>
-      {summary ? <p className="mb-4 border border-border p-3 text-sm">{summary}</p> : <p className="mb-4 text-sm text-muted-foreground">শিরোনামে ক্লিক করে রিসার্চ ডিটেইল খুলুন।</p>}
+      <DeskAutoControls />
+      <p className="mb-4 text-sm text-muted-foreground">শিরোনামে ক্লিক করে রিসার্চ ডিটেইল খুলুন। প্রয়োজনে সোর্স বদলি রিসার্চ/আর্টিকেল আবার চালানো যায়।</p>
       {stories.isError ? (
         <p className="text-sm text-destructive">{stories.error instanceof Error ? stories.error.message : "স্টোরি পড়া যায়নি"}</p>
       ) : stories.isLoading ? (
