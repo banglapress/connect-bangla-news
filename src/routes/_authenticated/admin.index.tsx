@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { deleteArticle, getMyAccess, listAllArticles } from "@/lib/admin.functions";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDate } from "@/lib/bangla";
+import { DeskAutoControls } from "@/components/desk-auto-controls";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({ meta: [{ title: "সম্পাদকীয় প্যানেল — The Connect" }, { name: "robots", content: "noindex" }] }),
@@ -74,6 +75,9 @@ function AdminDashboard() {
           <Link to="/admin/new" className="bg-primary px-4 py-2 text-sm text-primary-foreground">নতুন খবর</Link>
           <button onClick={signOut} className="border border-border px-4 py-2 text-sm">সাইন আউট</button>
         </div>
+      </div>
+      <div className="mt-6">
+        <DeskAutoControls />
       </div>
       <div className="mt-4 flex gap-2 text-sm">
         {([["all", "সব"], ["published", "প্রকাশিত"], ["draft", "ড্রাফট"]] as const).map(([key, label]) => (
