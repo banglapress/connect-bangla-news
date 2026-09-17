@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getMyAccess } from "@/lib/admin.functions";
 import { listDeskStories } from "@/lib/desk/stories.functions";
 import { listDeskJobs, runDeskIngest } from "@/lib/desk/ingest.functions";
+import { runDeskAutoDraft } from "@/lib/desk/auto-draft.functions";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
 export const Route = createFileRoute("/_authenticated/admin/desk/")({
@@ -29,11 +30,31 @@ function DeskPage() {
   const fetchStories = useServerFn(listDeskStories);
   const fetchJobs = useServerFn(listDeskJobs);
   const ingest = useServerFn(runDeskIngest);
+  const autoDraft = useServerFn(runDeskAutoDraft);
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const access = useQuery({ queryKey: ["access"], queryFn: () => fetchAccess() });
   const stories = useQuery({ queryKey: ["desk-stories"], queryFn: () => fetchStories(), enabled: access.data?.isStaff === true });
   const jobs = useQuery({ queryKey: ["desk-jobs"], queryFn: () => fetchJobs(), enabled: access.data?.isStaff === true });
+
+  async function runAuto() {
+    setRunning(true);
+    setSummary(null);
+    try {
+      const out = await autoDraft({ data: undefined });
+      const text = `Auto draft · ingest ${out.ingest.results.length} sources · stories ${out.processed.length}`;
+      setSummary(text);
+      toast.success(text);
+      await queryClient.invalidateQueries({ queryKey: ["desk-stories"] });
+      await queryClient.invalidateQueries({ queryKey: ["desk-jobs"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "অটো ড্রাফট যায়নি";
+      setSummary(message);
+      toast.error(message);
+    } finally {
+      setRunning(false);
+    }
+  }
 
   async function runNow() {
     setRunning(true);
@@ -78,7 +99,10 @@ function DeskPage() {
         <h1 className="font-serif text-2xl font-bold">স্টোরি মনিটর</h1>
         <div className="flex flex-wrap gap-3 text-sm">
           <button type="button" disabled={running} onClick={() => void runNow()} className="bg-primary px-5 py-2 font-medium text-primary-foreground disabled:opacity-60">
-            {running ? "RSS আনা হচ্ছে…" : "Run Now"}
+            {running ? "চলছে…" : "Run Now"}
+          </button>
+          <button type="button" disabled={running} onClick={() => void runAuto()} className="border border-border px-5 py-2 font-medium disabled:opacity-60">
+            Auto Draft Now
           </button>
           <a href="/admin/desk/sources" className="border border-border px-3 py-2 hover:bg-secondary">সোর্স</a>
           <a href="/admin/desk/settings" className="border border-border px-3 py-2 hover:bg-secondary">সেটিংস</a>
