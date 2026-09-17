@@ -1,5 +1,5 @@
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
-export const COVER_PROMPT_VERSION = "cover-v2";
+export const COVER_PROMPT_VERSION = "cover-v3";
 
 const RETIRED_IMAGE_MODELS = new Set(["gemini-2.0-flash-preview-image-generation"]);
 
@@ -53,37 +53,60 @@ function stripScripts(value: string) {
     .trim();
 }
 
+function softenHarmLanguage(value: string) {
+  return value
+    .replace(
+      /\b(dead|death|died|dying|killed|carcass|corpse|body|bodies|blood|bloody|gore|wound|wounded|injury|injured|slaughter|violence|violent|netted corpse)\b/gi,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function visualHints(input: CoverArticleContext) {
   const places = (input.places || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 4);
   const orgs = (input.organisations || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 3);
   const tags = (input.tags || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 5);
+  const entities = (input.entities || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 6);
   const category = stripScripts(String(input.category || "")).replace(/[-_]/g, " ");
-  return { places, orgs, tags, category };
+  const headline = softenHarmLanguage(stripScripts(input.headline || ""));
+  return { places, orgs, tags, entities, category, headline };
 }
 
 export function buildCoverPrompt(input: CoverArticleContext) {
   const hints = visualHints(input);
-  const subject = [hints.category, ...hints.places, ...hints.orgs, ...hints.tags].filter(Boolean).slice(0, 8).join(", ");
+  const subject = [hints.headline, hints.category, ...hints.places, ...hints.entities, ...hints.tags]
+    .filter(Boolean)
+    .slice(0, 10)
+    .join(", ");
   return [
     "Create one wordless editorial news photograph for a serious newspaper website.",
     "Minimalist, clean, professional, one clear scene, natural light, no collage.",
-    "Show the idea of the story through objects, place and atmosphere only.",
+    "Show the idea of the story through living subjects, place and atmosphere only.",
+    "If the news involves death, injury, nets or harm, DO NOT show carcasses, wounds, blood, suffering or dead animals.",
+    "Instead show a living healthy subject in its natural habitat, or a calm environmental scene that suggests the topic.",
+    "Example: a living dolphin in coastal river water; distant boats; quiet shoreline. Never a dead dolphin.",
     "NO TEXT of any kind: no letters, numbers, captions, headlines, UI, watermarks, mastheads, newspapers, documents, screens, signboards with writing.",
     "NO Bangla, NO Hindi, NO Devanagari, NO Arabic, NO English words in the picture.",
     "NO logo, NO brand mark, NO fake newspaper nameplate, NO 'The Connect', NO corner badge.",
     "Do not invent a photograph of a real public figure.",
     "Do not fill the frame with a giant isolated object.",
     "Wide landscape 16:9.",
-    subject ? `Visual subject hints (do not render these words): ${clip(subject, 280)}` : "Visual subject: contemporary civic scene in Bangladesh, restrained and specific.",
+    subject
+      ? `Visual subject hints (do not render these words): ${clip(subject, 320)}`
+      : "Visual subject: contemporary civic or natural scene in Bangladesh, restrained and specific.",
   ].join("\n");
 }
 
 export function buildSafeCoverPrompt(input?: CoverArticleContext) {
-  const hints = input ? visualHints(input) : { places: [] as string[], orgs: [] as string[], tags: [] as string[], category: "" };
-  const place = hints.places[0] || hints.category || "a South Asian city";
+  const hints = input
+    ? visualHints(input)
+    : { places: [] as string[], orgs: [] as string[], tags: [] as string[], entities: [] as string[], category: "", headline: "" };
+  const place = hints.places[0] || hints.category || "a South Asian coastal landscape";
   return [
     "Wordless editorial photograph, 16:9, clean news cover.",
-    `Quiet outdoor civic scene suggesting ${place}.`,
+    `Quiet outdoor scene suggesting ${place}.`,
+    "Living animals only if any animal appears. No carcass, no blood, no wounds, no suffering.",
     "No people faces close up, no text, no letters, no logo, no watermark, no newspaper, no signage with writing.",
     "Natural daylight, simple composition, uncluttered corners.",
   ].join(" ");
