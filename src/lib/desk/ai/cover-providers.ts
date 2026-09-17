@@ -150,15 +150,31 @@ function isFlagged(err: unknown) {
 export async function generateCoverImageBytes(prompt: string, fallbackPrompt?: string): Promise<CoverImageBytes> {
   const provider = readCoverImageProvider();
   if (provider === "gemini") {
-    const image = await generateGeminiCoverImage(prompt);
-    return {
-      mime: image.mime,
-      base64: image.base64,
-      provider: "gemini",
-      model: image.model,
-      durationMs: image.durationMs,
-      textNote: image.textNote,
-    };
+    try {
+      const image = await generateGeminiCoverImage(prompt);
+      return {
+        mime: image.mime,
+        base64: image.base64,
+        provider: "gemini",
+        model: image.model,
+        durationMs: image.durationMs,
+        textNote: image.textNote,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err || "");
+      if (fallbackPrompt && /safety|harm|violence|policy|blocked|flagged/i.test(message)) {
+        const image = await generateGeminiCoverImage(fallbackPrompt);
+        return {
+          mime: image.mime,
+          base64: image.base64,
+          provider: "gemini",
+          model: image.model,
+          durationMs: image.durationMs,
+          textNote: image.textNote,
+        };
+      }
+      throw err;
+    }
   }
   try {
     return await generateCloudflareCoverImage(prompt);
