@@ -1,21 +1,27 @@
-export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
-export const COVER_PROMPT_VERSION = "cover-v3";
+export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
+export const DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.6-flash";
+export const COVER_PROMPT_VERSION = "cover-v4";
 
 const RETIRED_IMAGE_MODELS = new Set(["gemini-2.0-flash-preview-image-generation"]);
 
-function readGeminiKey() {
+function env(name: string) {
   if (typeof process === "undefined") return "";
-  return String(process.env.GEMINI_API_KEY || "").trim();
+  return String(process.env[name] || "").trim();
+}
+
+function readGeminiKey() {
+  return env("GEMINI_API_KEY");
 }
 
 export function readGeminiImageModel() {
-  const raw =
-    typeof process === "undefined"
-      ? DEFAULT_GEMINI_IMAGE_MODEL
-      : String(process.env.GEMINI_IMAGE_MODEL || DEFAULT_GEMINI_IMAGE_MODEL).trim() ||
-        DEFAULT_GEMINI_IMAGE_MODEL;
+  const raw = env("GEMINI_IMAGE_MODEL") || DEFAULT_GEMINI_IMAGE_MODEL;
   const model = raw.replace(/^models\//, "");
   if (RETIRED_IMAGE_MODELS.has(model)) return DEFAULT_GEMINI_IMAGE_MODEL;
+  return model;
+}
+
+function readGeminiTextModel() {
+  const model = (env("GEMINI_MODEL") || DEFAULT_GEMINI_TEXT_MODEL).replace(/^models\//, "");
   return model;
 }
 
@@ -45,70 +51,135 @@ function clip(value: string, max: number) {
   return text.slice(0, max).trim();
 }
 
-function stripScripts(value: string) {
+function stripMarkdown(value: string) {
   return value
-    .replace(/[\u0980-\u09FF\u0900-\u097F\u0600-\u06FF]+/g, " ")
-    .replace(/["'`]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/^```(?:text|prompt)?\s*/i, "")
+    .replace(/```$/i, "")
+    .replace(/^Prompt:\s*/i, "")
+    .replace(/^"|"$/g, "")
     .trim();
 }
 
-function softenHarmLanguage(value: string) {
-  return value
-    .replace(
-      /\b(dead|death|died|dying|killed|carcass|corpse|body|bodies|blood|bloody|gore|wound|wounded|injury|injured|slaughter|violence|violent|netted corpse)\b/gi,
-      " ",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
+function safePromptContext(input: CoverArticleContext) {
+  const lines = [
+    `Headline: ${clip(input.headline || "", 300)}`,
+    `Excerpt: ${clip(input.excerpt || "", 900)}`,
+    `Category: ${clip(input.category || "", 120)}`,
+    `Tags: ${(input.tags || []).map(String).filter(Boolean).slice(0, 8).join(", ")}`,
+    `Key facts: ${(input.facts || []).map(String).filter(Boolean).slice(0, 6).join(" | ")}`,
+    `Places: ${(input.places || []).map(String).filter(Boolean).slice(0, 6).join(", ")}`,
+    `Organisations: ${(input.organisations || []).map(String).filter(Boolean).slice(0, 5).join(", ")}`,
+    `Entities: ${(input.entities || []).map(String).filter(Boolean).slice(0, 8).join(", ")}`,
+    `Article body excerpt: ${clip(input.body || "", 4500)}`,
+  ];
+  return lines.filter((line) => /:\s*\S/.test(line)).join("\n");
 }
 
-function visualHints(input: CoverArticleContext) {
-  const places = (input.places || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 4);
-  const orgs = (input.organisations || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 3);
-  const tags = (input.tags || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 5);
-  const entities = (input.entities || []).map((row) => stripScripts(String(row))).filter(Boolean).slice(0, 6);
-  const category = stripScripts(String(input.category || "")).replace(/[-_]/g, " ");
-  const headline = softenHarmLanguage(stripScripts(input.headline || ""));
-  return { places, orgs, tags, entities, category, headline };
+export async function generateGeminiCoverPrompt(input: CoverArticleContext, timeoutMs = 30000) {
+  const apiKey = readGeminiKey();
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+  const model = readGeminiTextModel();
+  const prompt = [
+    "You are the visual editor of a serious Bangladesh digital news publication.",
+    "Convert the supplied article context into ONE production-ready image-generation prompt for an article cover.",
+    "Return ONLY the final image prompt in English. Do not add explanations, labels, bullets, quotation marks, or markdown.",
+    "The image must be minimalist, meaningful, editorial, realistic or sophisticated editorial illustration, and built around ONE clear visual idea.",
+    "Normally show the principal living subject, relevant location, object, infrastructure, environment, or calm aftermath/surroundings.",
+    "When the story concerns death, injury, abuse, crime, disaster, animal mortality, conflict, or other harm, DO NOT depict bodies, wounds, blood, gore, suffering, torture, graphic injury, or a victim in distress. Instead visualize the subject while alive, the setting, the responsible object/infrastructure, environmental context, investigation clues, or a restrained non-graphic aftermath.",
+    "Do not invent a photograph of a real public figure. Do not imitate or identify a politician, celebrity, victim, suspect, or private person unless the article context explicitly requires a generic non-identifiable representation.",
+    "Do not create fake documents, fake screenshots, fake news pages, readable signs, or fabricated evidence.",
+    "NO TEXT inside the image. NO letters, numbers, captions, headlines, logos, watermarks, brand marks, newspaper mastheads, interface elements, or signage with readable writing.",
+    "Leave a clean lower-left area suitable for a small real website logo to be overlaid later by the application.",
+    "The composition must work as a 16:9 horizontal website news cover and crop cleanly to a 4:5 social image without losing the main subject.",
+    "Avoid generic stock-photo aesthetics, overcrowded collages, giant isolated objects, excessive cinematic effects, and meaningless decorative elements.",
+    "Keep the prompt concrete enough for an image model to understand the exact subject, setting, camera viewpoint, composition, light, mood, and visual hierarchy.",
+    "Write about 70-120 words.",
+    "IMPORTANT: do not repeat sensitive harm words from the article in the final image prompt. Translate them into a safe visual concept.",
+    "ARTICLE CONTEXT:",
+    safePromptContext(input),
+  ].join("\n\n");
+
+  const started = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(endpoint(model), {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 600,
+          thinkingConfig: { thinkingLevel: "minimal" },
+        },
+      }),
+    });
+    const raw = await res.text();
+    if (!res.ok) throw new Error(`Gemini cover prompt HTTP ${res.status}: ${raw.slice(0, 280)}`);
+    const payload = JSON.parse(raw);
+    const text = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || "").join(" ") || "";
+    const cleaned = stripMarkdown(String(text));
+    if (cleaned.length < 30) throw new Error("Gemini returned an unusably short cover prompt");
+    console.info("[cover-prompt]", { model, durationMs: Date.now() - started, status: "ok" });
+    return { prompt: cleaned.slice(0, 4000), model, durationMs: Date.now() - started };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw new Error("Gemini cover prompt timeout: request timed out");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fallbackContext(input: CoverArticleContext) {
+  return [
+    `Story subject: ${clip(input.headline || "", 300)}`,
+    `Relevant place: ${(input.places || []).map(String).filter(Boolean).slice(0, 3).join(", ")}`,
+    `Relevant entities: ${(input.entities || []).map(String).filter(Boolean).slice(0, 5).join(", ")}`,
+    `Category: ${clip(input.category || "", 100)}`,
+  ]
+    .filter((line) => /:\s*\S/.test(line))
+    .join("; ");
 }
 
 export function buildCoverPrompt(input: CoverArticleContext) {
-  const hints = visualHints(input);
-  const subject = [hints.headline, hints.category, ...hints.places, ...hints.entities, ...hints.tags]
-    .filter(Boolean)
-    .slice(0, 10)
-    .join(", ");
   return [
-    "Create one wordless editorial news photograph for a serious newspaper website.",
-    "Minimalist, clean, professional, one clear scene, natural light, no collage.",
-    "Show the idea of the story through living subjects, place and atmosphere only.",
-    "If the news involves death, injury, nets or harm, DO NOT show carcasses, wounds, blood, suffering or dead animals.",
-    "Instead show a living healthy subject in its natural habitat, or a calm environmental scene that suggests the topic.",
-    "Example: a living dolphin in coastal river water; distant boats; quiet shoreline. Never a dead dolphin.",
-    "NO TEXT of any kind: no letters, numbers, captions, headlines, UI, watermarks, mastheads, newspapers, documents, screens, signboards with writing.",
-    "NO Bangla, NO Hindi, NO Devanagari, NO Arabic, NO English words in the picture.",
-    "NO logo, NO brand mark, NO fake newspaper nameplate, NO 'The Connect', NO corner badge.",
-    "Do not invent a photograph of a real public figure.",
-    "Do not fill the frame with a giant isolated object.",
-    "Wide landscape 16:9.",
-    subject
-      ? `Visual subject hints (do not render these words): ${clip(subject, 320)}`
-      : "Visual subject: contemporary civic or natural scene in Bangladesh, restrained and specific.",
-  ].join("\n");
+    "Create one minimalist, wordless editorial news image for a serious Bangladesh digital newspaper website.",
+    "Use one clear visual idea drawn from the story subject, relevant location, living subjects, objects, infrastructure, or environment.",
+    "Keep the scene realistic, clean, restrained, meaningful, and uncluttered with natural or believable light.",
+    "If the story involves harm or loss, show a safe non-graphic visual: the living subject, relevant setting, responsible object or infrastructure, investigation context, or calm surroundings. Never show a body, wound, blood, gore, or suffering.",
+    "NO text, letters, numbers, captions, headlines, logos, watermarks, fake documents, fake screenshots, readable signs, or brand marks.",
+    "Do not fabricate a recognizable real person's face as documentary evidence.",
+    "Compose for 16:9 landscape and leave a little clean space in the lower-left for the real website logo to be added later.",
+    fallbackContext(input),
+    "Do not render the story context as words in the image.",
+  ].join(" ");
 }
 
 export function buildSafeCoverPrompt(input?: CoverArticleContext) {
-  const hints = input
-    ? visualHints(input)
-    : { places: [] as string[], orgs: [] as string[], tags: [] as string[], entities: [] as string[], category: "", headline: "" };
-  const place = hints.places[0] || hints.category || "a South Asian coastal landscape";
+  if (!input) {
+    return "Wordless minimalist editorial image, 16:9 landscape, clean contemporary Bangladesh setting, one clear subject, natural daylight, calm professional newspaper cover composition, no text, no letters, no logo, no watermark.";
+  }
+  const subject = [
+    ...(input.entities || []).map(String),
+    ...(input.tags || []).map(String),
+    input.category || "",
+  ]
+    .filter(Boolean)
+    .slice(0, 6)
+    .join(", ");
+  const place = (input.places || []).map(String).filter(Boolean).slice(0, 3).join(", ");
   return [
-    "Wordless editorial photograph, 16:9, clean news cover.",
-    `Quiet outdoor scene suggesting ${place}.`,
-    "Living animals only if any animal appears. No carcass, no blood, no wounds, no suffering.",
-    "No people faces close up, no text, no letters, no logo, no watermark, no newspaper, no signage with writing.",
-    "Natural daylight, simple composition, uncluttered corners.",
+    "Wordless minimalist editorial image, 16:9 landscape.",
+    `Show a living, calm visual treatment of ${subject || "the main subject of the story"}.`,
+    place ? `Set it in or around ${place}.` : "Use a believable Bangladesh setting appropriate to the subject.",
+    "Prefer a living subject, natural environment, relevant object, infrastructure or quiet surroundings.",
+    "Natural daylight, one clear visual idea, restrained composition, professional newspaper cover aesthetic.",
+    "No text, no letters, no logo, no watermark, no fake documents, no readable signs.",
   ].join(" ");
 }
 
@@ -125,6 +196,7 @@ function classifyGeminiError(status: number, raw: string) {
   if (status === 401 || status === 403 || /API_KEY|PERMISSION/i.test(raw)) return "auth";
   if (status >= 500) return "provider";
   if (/timed out|AbortError/i.test(raw)) return "timeout";
+  if (/safety|harm|violence|policy|blocked|flagged/i.test(raw)) return "safety";
   return "invalid_response";
 }
 
@@ -136,10 +208,11 @@ export async function generateGeminiCoverImage(prompt: string, timeoutMs = 90000
   const body = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.6,
-      responseModalities: ["TEXT", "IMAGE"],
+      temperature: 0.45,
+      responseModalities: ["IMAGE"],
       imageConfig: {
         aspectRatio: "16:9",
+        imageSize: "1K",
       },
     },
   };
