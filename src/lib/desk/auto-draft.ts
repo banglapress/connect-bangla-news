@@ -6,9 +6,24 @@ import { toSourcePackets } from "@/lib/desk/research.functions";
 import { slugifyBangla } from "@/lib/bangla";
 import { makePublicId } from "@/lib/ids";
 
-const AUTO_LIMIT = 6;
+const DEFAULT_AUTO_LIMIT = 4;
+const AUTO_CONCURRENCY = 2;
 const MIN_SOURCES_FOR_ARTICLE = 2;
 const MIN_RELEVANCE = 0.5;
+const AUTO_LOCK_MINUTES = 30;
+
+function envNumber(name: string, fallback: number, min: number, max: number) {
+  const raw = Number(process.env[name] || fallback);
+  return Number.isFinite(raw) ? Math.min(max, Math.max(min, Math.round(raw))) : fallback;
+}
+
+function candidateScore(story: any) {
+  const sourceCount = Number(story.source_count || 0);
+  const ageHours = Math.max(0, (Date.now() - new Date(story.created_at || Date.now()).getTime()) / 3600000);
+  const freshness = Math.max(0, 24 - ageHours);
+  const warnings = story.warning ? 0 : 1;
+  return sourceCount * 100 + freshness + warnings;
+}
 
 async function autoDiscoverAndAttach(supabase: any, story: any) {
   const links = await supabase.from("desk_story_sources").select("url, excerpt, title, raw_text").eq("story_id", story.id);
@@ -75,7 +90,9 @@ async function autoResearch(supabase: any, storyId: string) {
     confirmed_facts: packet.keyFacts,
     unverified_claims: packet.needsVerification,
     conflicting_facts: packet.conflicts,
-    warning: research.warnings?.[0]?.message || null,
+    warning: research.quality === "gemini"
+      ? (research.warnings?.[0]?.message || null)
+      : "Research needs manual review before article generation.",
     last_error: null,
     updated_at: new Date().toISOString(),
   }).eq("id", storyId);
@@ -153,51 +170,109 @@ async function autoArticle(supabase: any, storyId: string, userId?: string | nul
     article_status: checked.article_status || "ready",
     warning: "Auto draft. Edit text and cover before publish.",
     last_error: null,
+    auto_processing_started_at: null,
     updated_at: new Date().toISOString(),
   }).eq("id", storyId);
   return { articleId, title: drafted.title };
 }
 
+async function processStory(supabase: any, story: any, userId?: string | null) {
+  const lockTime = new Date().toISOString();
+  const locked = await supabase.from("desk_stories").update({
+    auto_processing_started_at: lockTime,
+    status: "researching",
+    updated_at: lockTime,
+  }).eq("id", story.id).is("auto_processing_started_at", null).select("id").maybeSingle();
+  if (locked.error) throw new Error(locked.error.message);
+  if (!locked.data?.id) return { id: story.id, step: "already_processing" };
+
+  try {
+    const discovery = await autoDiscoverAndAttach(supabase, story);
+    const countRes = await supabase.from("desk_story_sources").select("id", { count: "exact", head: true }).eq("story_id", story.id);
+    const count = countRes.count ?? 0;
+    if (count < MIN_SOURCES_FOR_ARTICLE) {
+      await supabase.from("desk_stories").update({
+        warning: "Auto draft stopped before research — add or confirm sources.",
+        auto_processing_started_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", story.id);
+      return { id: story.id, step: "needs_sources", discovery, count };
+    }
+
+    const research = await autoResearch(supabase, story.id);
+    if (research.quality !== "gemini" || !research.summary) {
+      await supabase.from("desk_stories").update({
+        warning: "Research needs manual review before article generation.",
+        auto_processing_started_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", story.id);
+      return { id: story.id, step: "needs_research_review", discovery };
+    }
+
+    const article = await autoArticle(supabase, story.id, userId);
+    return { id: story.id, step: "draft", discovery, article };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "auto-draft failed";
+    await supabase.from("desk_stories").update({
+      last_error: message,
+      auto_processing_started_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", story.id);
+    return { id: story.id, step: "error", error: message };
+  }
+}
+
 export async function runAutoDraftPipeline(supabase: any, opts?: { userId?: string | null; limit?: number }) {
+  const started = Date.now();
   const ingest = await runDeskIngestCore(supabase);
-  const since = new Date(Date.now() - 16 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString();
+  const limit = envNumber("DESK_AUTO_LIMIT", opts?.limit ?? DEFAULT_AUTO_LIMIT, 1, 6);
   const listed = await supabase
     .from("desk_stories")
-    .select("id, title_hint, draft_title, status, source_count, article_id, warning, created_at")
+    .select("id, title_hint, draft_title, status, source_count, article_id, warning, created_at, auto_processing_started_at")
     .in("status", ["new", "researching"])
     .is("article_id", null)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
-    .limit(opts?.limit ?? AUTO_LIMIT);
+    .limit(Math.min(20, limit * 4));
   if (listed.error) throw new Error(listed.error.message);
+
+  const cutoffLock = Date.now() - AUTO_LOCK_MINUTES * 60 * 1000;
+  const candidates = (listed.data ?? [])
+    .filter((story: any) => {
+      const lock = story.auto_processing_started_at ? new Date(story.auto_processing_started_at).getTime() : 0;
+      return !lock || lock < cutoffLock;
+    })
+    .sort((a: any, b: any) => candidateScore(b) - candidateScore(a))
+    .slice(0, limit);
+
   const processed: Array<Record<string, unknown>> = [];
-  for (const story of listed.data ?? []) {
-    try {
-      const discovery = await autoDiscoverAndAttach(supabase, story);
-      const countRes = await supabase.from("desk_story_sources").select("id", { count: "exact", head: true }).eq("story_id", story.id);
-      const count = countRes.count ?? 0;
-      if (count < MIN_SOURCES_FOR_ARTICLE) {
-        await supabase.from("desk_stories").update({
-          warning: "Auto draft stopped before research — add or confirm sources.",
-          updated_at: new Date().toISOString(),
-        }).eq("id", story.id);
-        processed.push({ id: story.id, step: "needs_sources", discovery, count });
-        continue;
-      }
-      await autoResearch(supabase, story.id);
-      const article = await autoArticle(supabase, story.id, opts?.userId);
-      processed.push({ id: story.id, step: "draft", discovery, article });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "auto-draft failed";
-      await supabase.from("desk_stories").update({ last_error: message, updated_at: new Date().toISOString() }).eq("id", story.id);
-      processed.push({ id: story.id, step: "error", error: message });
+  let cursor = 0;
+  async function worker() {
+    while (cursor < candidates.length) {
+      const index = cursor++;
+      const story = candidates[index];
+      const result = await processStory(supabase, story, opts?.userId);
+      processed.push(result);
     }
   }
+  await Promise.all(Array.from({ length: Math.min(AUTO_CONCURRENCY, candidates.length || 1) }, () => worker()));
+
+  const summary = {
+    durationMs: Date.now() - started,
+    candidateCount: candidates.length,
+    draftCount: processed.filter((row) => row.step === "draft").length,
+    needsSources: processed.filter((row) => row.step === "needs_sources").length,
+    needsResearchReview: processed.filter((row) => row.step === "needs_research_review").length,
+    errors: processed.filter((row) => row.step === "error").length,
+  };
+
   await supabase.from("desk_jobs").insert({
     stage: "auto-draft",
-    status: "ok",
-    payload: { ingestCount: ingest.results.length, processed },
+    status: summary.errors ? "failed" : "ok",
+    payload: { ingestCount: ingest.results.length, processed, summary },
+    error: summary.errors ? "One or more auto-draft stories failed" : null,
     finished_at: new Date().toISOString(),
   });
-  return { ingest, processed };
+  return { ingest, processed, summary };
 }
