@@ -157,21 +157,25 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
   return result;
 }
 
+export async function runDeskIngestCore(supabase: any, sourceId?: string) {
+  const settings = await readIngestSettings(supabase);
+  let query = supabase.from("news_sources").select("*").eq("active", true).order("priority");
+  if (sourceId) query = query.eq("id", sourceId);
+  const { data: sources, error } = await query;
+  if (error) throw new Error(error.message);
+  const selected = sources ?? [];
+  const runnable = sourceId ? selected : selected.filter((source: any) => isRssMode(source));
+  const results: IngestResult[] = [];
+  for (const source of runnable) results.push(await ingestSource(supabase, source, settings));
+  return { results, settings };
+}
+
 export const runDeskIngest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ sourceId: z.string().uuid().optional() }).parse(data ?? {}))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const settings = await readIngestSettings(context.supabase);
-    let query = context.supabase.from("news_sources").select("*").eq("active", true).order("priority");
-    if (data?.sourceId) query = query.eq("id", data.sourceId);
-    const { data: sources, error } = await query;
-    if (error) throw new Error(error.message);
-    const selected = sources ?? [];
-    const runnable = data?.sourceId ? selected : selected.filter((source: any) => isRssMode(source));
-    const results: IngestResult[] = [];
-    for (const source of runnable) results.push(await ingestSource(context.supabase, source, settings));
-    return { results, settings };
+    return runDeskIngestCore(context.supabase, data?.sourceId);
   });
 
 export const listDeskJobs = createServerFn({ method: "GET" })
