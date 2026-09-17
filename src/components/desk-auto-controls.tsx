@@ -65,7 +65,7 @@ export function DeskAutoControls() {
     <section className="mb-6 border-2 border-primary p-4">
       <h2 className="font-serif text-lg font-bold">অটো নিউজরুম</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        আরএসএস শুধু স্টোরি বানায়। অটো ড্রাফট আরএসএস পর রিলেটেড সর্চ, রিসার্চ ও আর্টিকেল লিখে শুধু ড্রাফটে রাখে। পাবলিশ হয় না।
+        অটো ড্রাফট: RSS → related coverage → পর্যাপ্ত source থাকলে research → AI article → শুধু draft। Publish বা Facebook post অটো হয় না। Scheduled run দিনে দুইবার: বাংলাদেশ সময় সকাল ৬টা ও সন্ধ্যা ৬টা।
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button type="button" disabled={!!running} onClick={() => void runRss()} className="bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-60">
