@@ -165,8 +165,7 @@ export async function runDeskIngestCore(supabase: any, sourceId?: string) {
   if (error) throw new Error(error.message);
   const selected = sources ?? [];
   const runnable = sourceId ? selected : selected.filter((source: any) => isRssMode(source));
-  const results: IngestResult[] = [];
-  for (const source of runnable) results.push(await ingestSource(supabase, source, settings));
+  const results = await Promise.all(runnable.map((source: any) => ingestSource(supabase, source, settings)));
   return { results, settings };
 }
 
