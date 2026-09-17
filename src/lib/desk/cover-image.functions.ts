@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { publicImageUrl } from "@/lib/image";
-import { COVER_PROMPT_VERSION, buildCoverPrompt, buildSafeCoverPrompt } from "@/lib/desk/ai/cover-image";
+import { COVER_PROMPT_VERSION, buildSafeCoverPrompt, generateGeminiCoverPrompt } from "@/lib/desk/ai/cover-image";
 import {
   coverImageConfigured,
   coverImageModelId,
@@ -84,6 +84,7 @@ function listPayload(story: any, article: any, images: any[], extras?: { migrati
     reusable: reusable.filter((row) => row.url && !seen.has(row.url) && seen.add(row.url)),
     generating: Boolean(extras?.generatingFlag) || generating.has(story.id) || story.cover_status === "generating",
     migrationNeeded: extras?.migrationNeeded === true,
+    coverPrompt: story.cover_prompt || "",
   };
 }
 
@@ -101,9 +102,46 @@ export const listDeskCoverImages = createServerFn({ method: "GET" })
     return listPayload(story, article, images.data || []);
   });
 
-export const generateDeskCoverImage = createServerFn({ method: "POST" })
+export const prepareDeskCoverPrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
+    const { story, article } = await loadStoryBundle(context.supabase, data.id);
+    const headline = article?.title || story.draft_title || story.title_hint || "";
+    const body = article?.body || story.draft_body || "";
+    const excerpt = article?.excerpt || story.draft_excerpt || "";
+    if (!headline.trim() && !body.trim() && !excerpt.trim()) {
+      throw new Error("Generate the article first so the cover prompt can use article content");
+    }
+
+    const packet = story.research_packet || {};
+    const structured = packet.structured || packet;
+    const input = {
+      headline,
+      excerpt,
+      body,
+      category: article?.category_slug || story.category_slug || "",
+      tags: article?.tags || story.tags || [],
+      facts: (structured.key_facts || []).map((row: any) => (typeof row === "string" ? row : row?.text || "")).filter(Boolean),
+      places: (structured.places || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
+      organisations: (structured.organisations || structured.organizations || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
+      entities: (structured.entities || structured.people || []).map((row: any) => (typeof row === "string" ? row : row?.name || row?.text || "")).filter(Boolean),
+    };
+
+    const generated = await generateGeminiCoverPrompt(input);
+    const saved = await context.supabase
+      .from("desk_stories")
+      .update({ cover_prompt: generated.prompt, cover_status: "prompt_ready", updated_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (saved.error) throw new Error(saved.error.message);
+
+    return { ok: true, prompt: generated.prompt, model: generated.model, durationMs: generated.durationMs };
+  });
+
+export const generateDeskCoverImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid(), prompt: z.string().min(30).max(4000) }).parse(data))
   .handler(async ({ data, context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
     const provider = readCoverImageProvider();
@@ -119,7 +157,9 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
     const headline = article?.title || story.draft_title || story.title_hint || "";
     const body = article?.body || story.draft_body || "";
     const excerpt = article?.excerpt || story.draft_excerpt || "";
+    const prompt = data.prompt.trim();
     if (!headline.trim() && !body.trim() && !excerpt.trim()) throw new Error("Generate the article first so the cover can use article content");
+    if (!prompt) throw new Error("Approve an image prompt before generating the cover");
     generating.add(data.id);
     const pending = await context.supabase.from("desk_story_images").insert({
       story_id: data.id,
@@ -130,32 +170,16 @@ export const generateDeskCoverImage = createServerFn({ method: "POST" })
       source_type: "generated",
       aspect_ratio: "16:9",
       generation_status: "generating",
+      prompt_text: prompt.slice(0, 4000),
     }).select("*").maybeSingle();
-    await context.supabase.from("desk_stories").update({ cover_status: "generating", updated_at: new Date().toISOString() }).eq("id", data.id);
+    await context.supabase.from("desk_stories").update({ cover_prompt: prompt, cover_status: "generating", updated_at: new Date().toISOString() }).eq("id", data.id);
     const rowId = pending.data?.id as string | undefined;
-    const packet = story.research_packet || {};
-    const structured = packet.structured || packet;
-    const prompt = buildCoverPrompt({
-      headline,
-      excerpt,
-      body,
-      category: article?.category_slug || story.category_slug || "",
-      tags: article?.tags || story.tags || [],
-      facts: (structured.key_facts || []).map((row: any) => (typeof row === "string" ? row : row?.text || "")).filter(Boolean),
-      places: (structured.places || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
-      organisations: (structured.organisations || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
-      entities: (structured.entities || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
-    });
     const started = Date.now();
     try {
-      const image = await generateCoverImageBytes(prompt, buildSafeCoverPrompt({
-        headline,
-        excerpt,
-        body,
-        category: article?.category_slug || story.category_slug || "",
-        tags: article?.tags || story.tags || [],
-        places: (structured.places || []).map((row: any) => (typeof row === "string" ? row : row?.name || "")).filter(Boolean),
-      }));
+      const image = await generateCoverImageBytes(
+        prompt,
+        buildSafeCoverPrompt({ headline, excerpt, body, category: article?.category_slug || story.category_slug || "", tags: article?.tags || story.tags || [] }),
+      );
       const uploaded = await uploadBytes(context.supabase, data.id, image.mime, Buffer.from(image.base64, "base64"), "base");
       const websiteUrl = cloudinaryFit(uploaded.url, 1600, 900) || uploaded.url;
       const socialUrl = cloudinaryFit(uploaded.url, 1080, 1350) || uploaded.url;
