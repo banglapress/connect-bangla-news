@@ -108,14 +108,29 @@ async function autoResearch(supabase: any, storyId: string) {
   const nameById = new Map((names.data ?? []).map((row: { id: string; name: string }) => [row.id, row.name]));
   const sources = toSourcePackets(rows, nameById);
   const preferred = getAIProvider();
-  if (preferred.name !== "gemini") {
-    throw new Error("Gemini research is not configured for auto-draft");
+  let research;
+  let researchProvider = preferred.name;
+  try {
+    research = await preferred.generateResearch({
+      title: storyRes.data.title_hint || "",
+      excerpt: rows.map((row: any) => row.excerpt || row.title || "").join(" "),
+      sources,
+    });
+  } catch (researchError) {
+    // Keep the queue moving when structured research fails. The article step
+    // still requires Gemini and will surface its own error if Gemini is unavailable.
+    const fallback = await import("@/lib/desk/ai/heuristic");
+    research = await fallback.heuristicProvider.generateResearch({
+      title: storyRes.data.title_hint || "",
+      excerpt: rows.map((row: any) => row.excerpt || row.title || "").join(" "),
+      sources,
+    });
+    research.warnings.push({
+      code: "research_fallback",
+      message: `Structured research failed; heuristic dossier used: ${researchError instanceof Error ? researchError.message : String(researchError)}`,
+    });
+    researchProvider = "heuristic_fallback";
   }
-  const research = await preferred.generateResearch({
-    title: storyRes.data.title_hint || "",
-    excerpt: rows.map((row: any) => row.excerpt || row.title || "").join(" "),
-    sources,
-  });
   const packet = toLegacyPacket(research);
   const sourceWarning =
     rows.length < 2 ? "Auto draft uses one source only. Review before publish." : null;
@@ -125,9 +140,9 @@ async function autoResearch(supabase: any, storyId: string) {
     confirmed_facts: packet.keyFacts,
     unverified_claims: packet.needsVerification,
     conflicting_facts: packet.conflicts,
-    warning: sourceWarning || (research.quality === "gemini"
+    warning: sourceWarning || (researchProvider === "gemini"
       ? (research.warnings?.[0]?.message || null)
-      : "Research needs manual review before article generation."),
+      : "Research fallback used. Review before publish."),
     last_error: null,
     updated_at: new Date().toISOString(),
   }).eq("id", storyId);
@@ -298,7 +313,29 @@ async function recoverAutoLocks(supabase: any) {
 async function processStory(supabase: any, story: any, userId?: string | null) {
   const attempt = Number(story.auto_attempts || 1);
   try {
-    const discovery = await autoDiscoverAndAttach(supabase, story);
+    const initialCountRes = await supabase.from("desk_story_sources").select("id", { count: "exact", head: true }).eq("story_id", story.id);
+    const initialCount = initialCountRes.count ?? 0;
+    let discovery: { added: number; hits: number; skipped?: boolean; error?: string } = {
+      added: 0,
+      hits: 0,
+      skipped: initialCount < 2,
+    };
+
+    // Discovery is useful for multi-source/developing stories but is a costly
+    // network step. Routine one-source news should not wait on Google News/GDELT.
+    if (initialCount >= 2) {
+      try {
+        discovery = await autoDiscoverAndAttach(supabase, story);
+      } catch (discoveryError) {
+        const message = discoveryError instanceof Error ? discoveryError.message : "Related coverage discovery failed";
+        discovery = { added: 0, hits: 0, error: message };
+        await supabase.from("desk_stories").update({
+          warning: `Related coverage skipped: ${message.slice(0, 500)}`,
+          updated_at: new Date().toISOString(),
+        }).eq("id", story.id);
+      }
+    }
+
     const countRes = await supabase.from("desk_story_sources").select("id", { count: "exact", head: true }).eq("story_id", story.id);
     const count = countRes.count ?? 0;
     if (count < MIN_SOURCES_FOR_ARTICLE) {
