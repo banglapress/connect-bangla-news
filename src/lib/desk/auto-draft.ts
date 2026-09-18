@@ -1,7 +1,7 @@
 import { discoverRelatedCoverage } from "@/lib/desk/discovery";
 import { canonicalizeUrl } from "@/lib/desk/url";
 import { runDeskIngestCore } from "@/lib/desk/ingest.functions";
-import { getAIProvider, getArticleProvider, heuristicProvider, toLegacyPacket, parseArticleDepth, validateGeneratedArticle } from "@/lib/desk/ai";
+import { getAIProvider, getArticleProvider, toLegacyPacket, parseArticleDepth, validateGeneratedArticle } from "@/lib/desk/ai";
 import { toSourcePackets } from "@/lib/desk/research.functions";
 import { slugifyBangla } from "@/lib/bangla";
 import { makePublicId } from "@/lib/ids";
