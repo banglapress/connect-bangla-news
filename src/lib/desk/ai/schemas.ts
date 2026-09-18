@@ -38,6 +38,7 @@ const warningItem = {
         "limited_content",
         "repetition",
         "truncated",
+        "research_fallback",
       ],
     },
     message: { type: "string" },
