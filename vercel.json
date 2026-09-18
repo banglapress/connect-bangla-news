@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/desk-auto-draft",
-      "schedule": "0 0 * * *"
+      "schedule": "35 6 * * *"
     }
   ]
 }
