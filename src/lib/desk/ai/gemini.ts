@@ -74,20 +74,41 @@ async function generateJson(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(endpoint(model), {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify(body),
-    });
-    const raw = await res.text();
-    const durationMs = Date.now() - started;
-    if (!res.ok) {
-      throw new Error(`Gemini HTTP ${res.status}: ${raw.slice(0, 280)}`);
+    let res: Response | null = null;
+    let raw = "";
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      res = await fetch(endpoint(model), {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(body),
+      });
+      raw = await res.text();
+      if (res.ok) break;
+
+      const retryable =
+        res.status === 429 ||
+        res.status === 500 ||
+        res.status === 502 ||
+        res.status === 503 ||
+        res.status === 504;
+
+      if (!retryable || attempt === maxAttempts) {
+        throw new Error(`Gemini HTTP ${res.status}: ${raw.slice(0, 280)}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** (attempt - 1)));
     }
+
+    const durationMs = Date.now() - started;
+    if (!res?.ok) {
+      throw new Error(`Gemini HTTP ${res?.status || 500}: ${raw.slice(0, 280)}`);
+    }
+
     const payload = JSON.parse(raw);
     const finishReason = payload?.candidates?.[0]?.finishReason || null;
     const text =
