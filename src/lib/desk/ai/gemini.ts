@@ -53,7 +53,7 @@ async function generateJson(
   prompt: string,
   schema: Record<string, unknown>,
   timeoutMs = 75000,
-  options?: { temperature?: number; maxOutputTokens?: number; thinkingLevel?: "minimal" | "low" | "medium" | "high" },
+  options?: { maxOutputTokens?: number; thinkingLevel?: "minimal" | "low" | "medium" | "high" },
 ): Promise<GeminiCallResult> {
   const apiKey = readGeminiKey();
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
@@ -62,7 +62,6 @@ async function generateJson(
   const body = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: options?.temperature ?? 0.2,
       maxOutputTokens: options?.maxOutputTokens ?? 16384,
       responseMimeType: "application/json",
       responseJsonSchema: schema,
@@ -329,7 +328,6 @@ export const geminiProvider: AIProvider = {
       .filter(Boolean)
       .join("\n\n");
     const result = await generateJson(prompt, ARTICLE_JSON_SCHEMA, 90000, {
-      temperature: 0.35,
       maxOutputTokens: 24576,
       thinkingLevel: "low",
     });
