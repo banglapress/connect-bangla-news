@@ -75,6 +75,37 @@ create index if not exists desk_stories_auto_claim_idx
   )
   where article_id is null;
 
+
+-- Reconcile historical rows so already-finished/published work leaves the
+-- active queue, and exhausted retries require human review.
+update public.desk_stories as ds
+set
+  status = 'published',
+  auto_processing_started_at = null,
+  auto_next_attempt_at = null,
+  auto_failure_stage = null,
+  warning = null,
+  last_error = null,
+  updated_at = now()
+from public.articles as a
+where ds.article_id = a.id
+  and a.status = 'published'
+  and ds.status <> 'published';
+
+update public.desk_stories
+set
+  status = 'review',
+  auto_processing_started_at = null,
+  auto_next_attempt_at = null,
+  warning = 'Auto-draft stopped after 3 attempts; manual review required.',
+  updated_at = now()
+where status = 'new'
+  and coalesce(auto_attempts, 0) >= 3
+  and (auto_next_attempt_at is null or auto_next_attempt_at <= now());
+
+create index if not exists desk_stories_article_id_idx
+  on public.desk_stories (article_id);
+
 notify pgrst, 'reload schema';
 
 commit;
