@@ -100,8 +100,27 @@ set
   warning = 'Auto-draft stopped after 3 attempts; manual review required.',
   updated_at = now()
 where status = 'new'
-  and coalesce(auto_attempts, 0) >= 3
-  and (auto_next_attempt_at is null or auto_next_attempt_at <= now());
+  and coalesce(auto_attempts, 0) >= 3;
+
+-- Normalize legacy retry schedules created by the previous policy:
+-- attempt 1 retries in 15 minutes, attempt 2 retries in 30 minutes.
+update public.desk_stories
+set
+  auto_next_attempt_at = now() + interval '15 minutes',
+  warning = 'Auto-draft retry scheduled in 15 minutes (' || coalesce(auto_failure_stage, 'processing') || ').',
+  updated_at = now()
+where status = 'new'
+  and coalesce(auto_attempts, 0) = 1
+  and article_id is null;
+
+update public.desk_stories
+set
+  auto_next_attempt_at = now() + interval '30 minutes',
+  warning = 'Auto-draft retry scheduled in 30 minutes (' || coalesce(auto_failure_stage, 'processing') || ').',
+  updated_at = now()
+where status = 'new'
+  and coalesce(auto_attempts, 0) = 2
+  and article_id is null;
 
 create index if not exists desk_stories_article_id_idx
   on public.desk_stories (article_id);
