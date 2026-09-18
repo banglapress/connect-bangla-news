@@ -23,7 +23,10 @@ jobs:
             exit 1
           fi
 
-          curl --fail-with-body --silent --show-error             --max-time 120             -H "Authorization: Bearer ${DESK_CRON_SECRET}"             "${DESK_URL}?mode=ingest"
+          curl --fail-with-body --silent --show-error \
+            --max-time 120 \
+            -H "Authorization: Bearer ${DESK_CRON_SECRET}" \
+            "${DESK_URL}?mode=ingest"
 
   workers:
     needs: ingest
@@ -48,4 +51,7 @@ jobs:
             exit 1
           fi
 
-          curl --fail-with-body --silent --show-error             --max-time 300             -H "Authorization: Bearer ${DESK_CRON_SECRET}"             "${DESK_URL}?mode=worker&limit=1&worker=${WORKER_ID}"
+          curl --fail-with-body --silent --show-error \
+            --max-time 300 \
+            -H "Authorization: Bearer ${DESK_CRON_SECRET}" \
+            "${DESK_URL}?mode=worker&limit=1&worker=${WORKER_ID}"
