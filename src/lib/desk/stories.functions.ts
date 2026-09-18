@@ -46,8 +46,12 @@ export const listDeskStories = createServerFn({ method: "GET" })
     const syncedStories = stories.map((row) =>
       publishedArticleIds.has(row.article_id ?? "") ? { ...row, status: "published" } : row,
     );
-    const ids = syncedStories.map((row) => row.id);
-    if (!ids.length) return stories;
+
+    // Published articles are finished work. Keep them out of the active AI Desk
+    // monitor so the queue stays focused on stories that still need action.
+    const activeStories = syncedStories.filter((row) => row.status !== "published");
+    const ids = activeStories.map((row) => row.id);
+    if (!ids.length) return activeStories;
     const links = await context.supabase
       .from("desk_story_sources")
       .select("story_id, title, url, source_id")
@@ -56,5 +60,5 @@ export const listDeskStories = createServerFn({ method: "GET" })
     for (const row of links.data ?? []) {
       (byStory[row.story_id] ??= []).push({ title: row.title, url: row.url });
     }
-    return syncedStories.map((row) => ({ ...row, sources: byStory[row.id] ?? [] }));
+    return activeStories.map((row) => ({ ...row, sources: byStory[row.id] ?? [] }));
   });
