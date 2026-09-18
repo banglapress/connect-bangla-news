@@ -33,7 +33,7 @@ async function handle(request: Request) {
 
   const started = Date.now();
   try {
-    const result = await runAutoDraftPipeline(supabaseAdmin, { limit: 4 });
+    const result = await runAutoDraftPipeline(supabaseAdmin);
     return Response.json({ ok: true, durationMs: Date.now() - started, ...result }, {
       headers: { "Cache-Control": "no-store" },
     });
