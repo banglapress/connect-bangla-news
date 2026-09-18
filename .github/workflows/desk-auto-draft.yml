@@ -1,0 +1,29 @@
+name: The Connect AI Desk Auto Draft
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 00:15 and 12:15 UTC = 06:15 and 18:15 Bangladesh time.
+    - cron: "15 0,12 * * *"
+
+jobs:
+  auto-draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Run AI Desk auto-draft
+        env:
+          DESK_CRON_SECRET: ${{ secrets.DESK_CRON_SECRET }}
+          DESK_URL: https://www.theconnectbd.com/api/desk-auto-draft
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DESK_CRON_SECRET:-}" ]; then
+            echo "Missing GitHub repository secret: DESK_CRON_SECRET"
+            exit 1
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --max-time 300 \
+            -H "Authorization: Bearer ${DESK_CRON_SECRET}" \
+            "${DESK_URL}"
