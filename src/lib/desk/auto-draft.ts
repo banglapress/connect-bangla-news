@@ -263,17 +263,26 @@ export async function runAutoDraftPipeline(supabase: any, opts?: { userId?: stri
 
   const cutoffLock = Date.now() - AUTO_LOCK_MINUTES * 60 * 1000;
   const cutoffIso = new Date(cutoffLock).toISOString();
+  const recoveryPatch = {
+    status: "new",
+    auto_processing_started_at: null,
+    auto_next_attempt_at: new Date().toISOString(),
+    warning: "Recovered from a stale auto-draft lock.",
+    updated_at: new Date().toISOString(),
+  };
+
+  // Recover legacy stories that were left in "researching" with no lock.
+  await supabase
+    .from("desk_stories")
+    .update(recoveryPatch)
+    .eq("status", "researching")
+    .is("article_id", null)
+    .is("auto_processing_started_at", null);
 
   // Recover stories abandoned by a timed-out function invocation.
   await supabase
     .from("desk_stories")
-    .update({
-      status: "new",
-      auto_processing_started_at: null,
-      auto_next_attempt_at: new Date().toISOString(),
-      warning: "Recovered from a stale auto-draft lock.",
-      updated_at: new Date().toISOString(),
-    })
+    .update(recoveryPatch)
     .eq("status", "researching")
     .is("article_id", null)
     .lt("auto_processing_started_at", cutoffIso);
