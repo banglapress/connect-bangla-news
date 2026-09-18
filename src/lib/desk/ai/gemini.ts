@@ -53,11 +53,11 @@ async function generateJson(
   prompt: string,
   schema: Record<string, unknown>,
   timeoutMs = 75000,
-  options?: { maxOutputTokens?: number; thinkingLevel?: "minimal" | "low" | "medium" | "high" },
+  options?: { maxOutputTokens?: number; thinkingLevel?: "minimal" | "low" | "medium" | "high"; model?: string; maxAttempts?: number },
 ): Promise<GeminiCallResult> {
   const apiKey = readGeminiKey();
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
-  const model = readGeminiModel();
+  const model = options?.model ? options.model.replace(/^models\//, "") : readGeminiModel();
   const started = Date.now();
   const body = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -75,7 +75,7 @@ async function generateJson(
   try {
     let res: Response | null = null;
     let raw = "";
-    const maxAttempts = 3;
+    const maxAttempts = options?.maxAttempts ?? 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       res = await fetch(endpoint(model), {
         method: "POST",
@@ -287,7 +287,7 @@ export const geminiProvider: AIProvider = {
   async generateArticle(input: ArticleInput): Promise<GeneratedArticle> {
     const depth = parseArticleDepth(input.depth);
     const target = DEPTH_TARGETS[depth];
-    const packed = packDossierForPrompt(input.research, 28000);
+    const packed = packDossierForPrompt(input.research, 18000);
     const prompt = [
       "You are a newsroom writer for The Connect, not a summarizer.",
       "Write a completely original Bangla news article from the FULL research dossier AND the source notes.",
@@ -328,8 +328,12 @@ export const geminiProvider: AIProvider = {
       .filter(Boolean)
       .join("\n\n");
     const result = await generateJson(prompt, ARTICLE_JSON_SCHEMA, 90000, {
-      maxOutputTokens: 24576,
-      thinkingLevel: "low",
+      maxOutputTokens: 8192,
+      thinkingLevel: "minimal",
+      // Keep the manual article request fast and cheap. Flash-Lite is designed
+      // for high-throughput/low-latency workloads; research remains on 3.6.
+      model: "gemini-3.5-flash-lite",
+      maxAttempts: 1,
     });
     const raw = result.json || {};
     const title = String(raw.title || input.title || "").trim();
