@@ -1,13 +1,13 @@
 -- Auto-draft queue recovery and retry metadata.
 -- Safe to run once; all changes are additive.
 
-alter table if exists public.desk_stories
+alter table public.desk_stories
   add column if not exists auto_attempts integer not null default 0;
 
-alter table if exists public.desk_stories
+alter table public.desk_stories
   add column if not exists auto_next_attempt_at timestamptz;
 
-alter table if not exists public.desk_stories
+alter table public.desk_stories
   add column if not exists auto_failure_stage text;
 
 create index if not exists desk_stories_auto_queue_idx
