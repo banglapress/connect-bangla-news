@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Ingest RSS sources
         env:
-          DESK_CRON_SECRET: ${{ secrets.DESK_CRON_SECRET }}
+          DESK_CRON_SECRET: ${{ secrets.DESK_CRON_SECRET || secrets.CRON_SECRET }}
           DESK_URL: https://www.theconnectbd.com/api/desk-auto-draft
         run: |
           set -euo pipefail
@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Process one AI Desk story
         env:
-          DESK_CRON_SECRET: ${{ secrets.DESK_CRON_SECRET }}
+          DESK_CRON_SECRET: ${{ secrets.DESK_CRON_SECRET || secrets.CRON_SECRET }}
           DESK_URL: https://www.theconnectbd.com/api/desk-auto-draft
           WORKER_ID: ${{ matrix.worker }}
         run: |
