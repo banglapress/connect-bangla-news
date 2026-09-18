@@ -7,5 +7,5 @@ export const runDeskAutoDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    return runAutoDraftPipeline(context.supabase, { userId: context.userId, limit: 6 });
+    return runAutoDraftPipeline(context.supabase, { userId: context.userId, limit: 2 });
   });
