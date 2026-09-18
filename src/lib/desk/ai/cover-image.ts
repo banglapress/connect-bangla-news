@@ -1,5 +1,6 @@
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
 export const DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.6-flash";
+export const DEFAULT_GEMINI_COVER_PROMPT_MODEL = "gemini-3.5-flash-lite";
 export const COVER_PROMPT_VERSION = "cover-v4";
 
 const RETIRED_IMAGE_MODELS = new Set(["gemini-2.0-flash-preview-image-generation"]);
@@ -22,6 +23,11 @@ export function readGeminiImageModel() {
 
 function readGeminiTextModel() {
   const model = (env("GEMINI_MODEL") || DEFAULT_GEMINI_TEXT_MODEL).replace(/^models\//, "");
+  return model;
+}
+
+function readGeminiCoverPromptModel() {
+  const model = (env("GEMINI_COVER_PROMPT_MODEL") || DEFAULT_GEMINI_COVER_PROMPT_MODEL).replace(/^models\//, "");
   return model;
 }
 
@@ -78,7 +84,7 @@ function safePromptContext(input: CoverArticleContext) {
 export async function generateGeminiCoverPrompt(input: CoverArticleContext, timeoutMs = 30000) {
   const apiKey = readGeminiKey();
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
-  const model = readGeminiTextModel();
+  const model = readGeminiCoverPromptModel();
   const prompt = [
     "You are the visual editor of a serious Bangladesh digital news publication.",
     "Convert the supplied article context into ONE production-ready image-generation prompt for an article cover.",
@@ -103,24 +109,37 @@ export async function generateGeminiCoverPrompt(input: CoverArticleContext, time
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(endpoint(model), {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
+    const requestBody = JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.25,
+        maxOutputTokens: 600,
+        thinkingConfig: { thinkingLevel: "minimal" },
       },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 600,
-          thinkingConfig: { thinkingLevel: "minimal" },
-        },
-      }),
     });
-    const raw = await res.text();
-    if (!res.ok) throw new Error(`Gemini cover prompt HTTP ${res.status}: ${raw.slice(0, 280)}`);
+
+    let res: Response | null = null;
+    let raw = "";
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      res = await fetch(endpoint(model), {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: requestBody,
+      });
+      raw = await res.text();
+      if (res.ok) break;
+      const retryable = res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503 || res.status === 504;
+      if (!retryable || attempt === maxAttempts) {
+        throw new Error("Gemini cover prompt HTTP " + res.status + ": " + raw.slice(0, 280));
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** (attempt - 1)));
+    }
+    if (!res?.ok) throw new Error("Gemini cover prompt HTTP " + (res?.status || 500) + ": " + raw.slice(0, 280));
     const payload = JSON.parse(raw);
     const text = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || "").join(" ") || "";
     const cleaned = stripMarkdown(String(text));
