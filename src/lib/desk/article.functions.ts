@@ -5,6 +5,7 @@ import { assertDeskStaff } from "@/lib/desk/staff";
 import { getArticleProvider, parseArticleDepth, validateGeneratedArticle } from "@/lib/desk/ai";
 import type { ResearchPacket, StructuredResearch } from "@/lib/desk/ai";
 import { toSourcePackets } from "@/lib/desk/research.functions";
+import { heuristicProvider } from "@/lib/desk/ai/heuristic";
 import { makePublicId } from "@/lib/ids";
 import { slugifyBangla } from "@/lib/bangla";
 
@@ -34,13 +35,45 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
     const srcRes = await supabase.from("desk_story_sources").select("*").eq("story_id", data.id);
     const rows = srcRes.data ?? [];
     if (rows.length < 1) throw new Error("Add sources before generating an article");
-    const packet = structuredFrom(story.research_packet);
-    if (!packet) throw new Error("Prepare Research first");
-
     const names = await supabase.from("news_sources").select("id, name");
     const nameById = new Map((names.data ?? []).map((row: { id: string; name: string }) => [row.id, row.name]));
     const sources = toSourcePackets(rows, nameById);
     const depth = parseArticleDepth(data.depth || story.article_depth || "standard");
+
+    // "Generate AI Article" is the manual escape hatch. It must not depend on
+    // the user first running Prepare Research. If no dossier exists, build a
+    // deterministic local dossier from the already attached source material,
+    // then let Gemini do the actual article writing.
+    let packet = structuredFrom(story.research_packet);
+    if (!packet) {
+      const localResearch = await heuristicProvider.generateResearch({
+        title: story.title_hint || "",
+        excerpt: rows.map((row: any) => row.excerpt || row.title || "").join(" "),
+        sources,
+      });
+      localResearch.warnings.push({
+        code: "research_fallback",
+        message: "Research was prepared automatically from the attached sources before article generation.",
+      });
+      packet = localResearch;
+
+      const researchPacket = {
+        ...localResearch,
+        source_utilization: story.source_utilization || [],
+      };
+      await supabase
+        .from("desk_stories")
+        .update({
+          research_status: "needs_review",
+          research_packet: researchPacket,
+          confirmed_facts: localResearch.key_facts.map((row) => row.text),
+          unverified_claims: localResearch.unverified_claims.map((row) => row.text),
+          conflicting_facts: localResearch.source_conflicts.map((row) => row.text),
+          warning: localResearch.warnings[0]?.message || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.id);
+    }
 
     await supabase
       .from("desk_stories")
