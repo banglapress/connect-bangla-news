@@ -13,7 +13,7 @@ const MIN_SOURCES_FOR_ARTICLE = 1;
 const MIN_RELEVANCE = 0.5;
 const AUTO_LOCK_MINUTES = 30;
 const MAX_AUTO_ATTEMPTS = 3;
-const RETRY_DELAYS_MINUTES = [15, 60, 240];
+const RETRY_DELAYS_MINUTES = [15, 30];
 
 function envNumber(name: string, fallback: number, min: number, max: number) {
   const raw = Number(process.env[name] || fallback);
@@ -50,7 +50,7 @@ async function markAutoRetry(
     ? new Date(Date.now() + retryDelayMinutes(attempt) * 60 * 1000).toISOString()
     : null;
   await supabase.from("desk_stories").update({
-    status: "new",
+    status: retryable ? "new" : "review",
     auto_processing_started_at: null,
     auto_next_attempt_at: nextAttempt,
     auto_failure_stage: stage,
