@@ -33,7 +33,7 @@ The target operating model is:
 - 1 story per worker
 - 15-minute scheduler cadence
 - up to 96 scheduler cycles/day
-- practical capacity is much higher than the 60–70 daily newsroom target; actual throughput depends on Gemini API rate limits, source availability, retries and Vercel execution time
+- up to 384 worker story slots/day before retries (96 cycles × 4 workers); actual drafts depend on Gemini API rate limits, source availability, retries and execution time
 
 For routine one-source stories, the auto-draft path allows a single source and defaults to a brief article. These drafts are explicitly marked for review. Stories with two or more sources use the normal standard-depth path unless an article depth was already selected.
 
