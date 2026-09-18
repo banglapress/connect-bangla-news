@@ -211,6 +211,7 @@ async function autoArticle(supabase: any, storyId: string, userId?: string | nul
     draft_body: drafted.body,
     status: "draft",
     article_status: checked.article_status || "ready",
+    article_depth: depth,
     warning,
     last_error: null,
     auto_processing_started_at: null,
