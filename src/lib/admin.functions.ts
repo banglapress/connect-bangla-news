@@ -72,6 +72,17 @@ export const getArticleForEdit = createServerFn({ method: "GET" })
     return row;
   });
 
+async function syncDeskStoryPublication(supabase: any, articleId: string, status: "draft" | "published") {
+  const { error } = await supabase
+    .from("desk_stories")
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("article_id", articleId);
+  if (error) throw new Error(error.message);
+}
+
 async function writeArticle(supabase: any, payload: Record<string, unknown>, id?: string) {
   const full = { ...payload };
   const basic = { ...payload };
@@ -114,11 +125,13 @@ export const updateArticle = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { id, ...fields } = data;
     const { data: existing } = await context.supabase.from("articles").select("published_at").eq("id", id).maybeSingle();
-    return writeArticle(context.supabase, {
+    const saved = await writeArticle(context.supabase, {
       ...fields,
       image_url: fields.image_url ?? fields.image_urls?.[0] ?? null,
       published_at: fields.status === "published" ? (existing?.published_at ?? new Date().toISOString()) : null,
     }, id);
+    await syncDeskStoryPublication(context.supabase, id, fields.status);
+    return saved;
   });
 
 export const deleteArticle = createServerFn({ method: "POST" })
