@@ -65,7 +65,7 @@ export function DeskAutoControls() {
     <section className="mb-6 border-2 border-primary p-4">
       <h2 className="font-serif text-lg font-bold">অটো নিউজরুম</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        অটো ড্রাফট: RSS → related coverage → পর্যাপ্ত source থাকলে research → AI article → শুধু draft। Publish বা Facebook post অটো হয় না। Scheduled run দিনে দুইবার: বাংলাদেশ সময় সকাল ৬টা ও সন্ধ্যা ৬টা।
+        অটো ড্রাফট: RSS → related coverage → source research → AI article → শুধু draft। সাধারণ এক-source খবর brief mode-এ দ্রুত draft হয়; দুই বা তার বেশি source থাকলে standard draft। Publish বা Facebook post অটো হয় না। Scheduled queue প্রতি ১৫ মিনিটে ingest করে এবং ৪টি parallel worker story প্রসেস করে।
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         <button type="button" disabled={!!running} onClick={() => void runRss()} className="bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-60">
