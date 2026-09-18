@@ -122,6 +122,24 @@ where status = 'new'
   and coalesce(auto_attempts, 0) = 2
   and article_id is null;
 
+
+-- Requeue only stories that the previous auto-draft retry policy exhausted.
+-- These rows are identifiable by the automatic stop warning and no article_id.
+-- They get a fresh attempt after the Gemini reliability fixes.
+update public.desk_stories
+set
+  status = 'new',
+  auto_attempts = 0,
+  auto_processing_started_at = null,
+  auto_next_attempt_at = now(),
+  auto_failure_stage = null,
+  last_error = null,
+  warning = 'Re-queued after AI Desk automation fix.',
+  updated_at = now()
+where status = 'review'
+  and article_id is null
+  and warning = 'Auto-draft stopped after 3 attempts; manual review required.';
+
 create index if not exists desk_stories_article_id_idx
   on public.desk_stories (article_id);
 
