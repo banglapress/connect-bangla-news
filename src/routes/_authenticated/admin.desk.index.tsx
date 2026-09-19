@@ -1,7 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { toast } from "sonner";
 import { getMyAccess } from "@/lib/admin.functions";
+import { createEditorialStory } from "@/lib/desk/editorial.functions";
 import { listDeskStories } from "@/lib/desk/stories.functions";
 import { listDeskJobs } from "@/lib/desk/ingest.functions";
 import { DeskAutoControls } from "@/components/desk-auto-controls";
@@ -13,6 +16,9 @@ export const Route = createFileRoute("/_authenticated/admin/desk/")({
 });
 
 const LABELS: Record<string, string> = {
+  news: "NEWS",
+  explainer: "EXPLAINER",
+  feature: "FEATURE",
   new: "NEW",
   researching: "RESEARCHING",
   draft: "DRAFT",
@@ -23,6 +29,11 @@ const LABELS: Record<string, string> = {
 };
 
 function DeskPage() {
+  const navigate = useNavigate();
+  const createStory = useServerFn(createEditorialStory);
+  const [newTitle, setNewTitle] = useState("");
+  const [newType, setNewType] = useState<"explainer" | "feature">("explainer");
+  const [creating, setCreating] = useState(false);
   const fetchAccess = useServerFn(getMyAccess);
   const fetchStories = useServerFn(listDeskStories);
   const fetchJobs = useServerFn(listDeskJobs);
@@ -51,6 +62,56 @@ function DeskPage() {
         </div>
       </div>
       <DeskAutoControls />
+
+      <section className="mb-6 border border-border p-4">
+        <h2 className="font-serif text-lg font-bold">নতুন Feature / Explainer</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          RSS story ছাড়াও একটি topic দিয়ে আলাদা research project শুরু করুন।
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+          <input
+            value={newTitle}
+            onChange={(event) => setNewTitle(event.target.value)}
+            placeholder="যেমন: বাংলাদেশে নদী শুকিয়ে যাচ্ছে কেন?"
+            className="border border-border bg-background px-3 py-2 text-sm outline-none"
+          />
+          <select
+            value={newType}
+            onChange={(event) => setNewType(event.target.value as "explainer" | "feature")}
+            className="border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="explainer">Explainer</option>
+            <option value="feature">Feature</option>
+          </select>
+          <button
+            type="button"
+            disabled={creating || newTitle.trim().length < 5}
+            onClick={async () => {
+              setCreating(true);
+              try {
+                const result = await createStory({
+                  data: {
+                    title: newTitle.trim(),
+                    editorialType: newType,
+                    categorySlug: "national",
+                  },
+                });
+                toast.success("Editorial project তৈরি হয়েছে");
+                setNewTitle("");
+                navigate({ to: "/admin/desk/$id", params: { id: result.id } });
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Project তৈরি হয়নি");
+              } finally {
+                setCreating(false);
+              }
+            }}
+            className="bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+          >
+            {creating ? "তৈরি হচ্ছে…" : "শুরু করুন"}
+          </button>
+        </div>
+      </section>
+
       <p className="mb-4 text-sm text-muted-foreground">শিরোনামে ক্লিক করে রিসার্চ ডিটেইল খুলুন। প্রয়োজনে সোর্স বদলি রিসার্চ/আর্টিকেল আবার চালানো যায়।</p>
       {stories.isError ? (
         <p className="text-sm text-destructive">{stories.error instanceof Error ? stories.error.message : "স্টোরি পড়া যায়নি"}</p>
@@ -62,6 +123,11 @@ function DeskPage() {
             <div key={row.id} className="p-3 text-sm">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="border border-border px-2 py-0.5 text-xs">{LABELS[row.status] ?? row.status}</span>
+                {row.editorial_type && row.editorial_type !== "news" ? (
+                  <span className="border border-primary/40 px-2 py-0.5 text-xs text-primary">
+                    {row.editorial_type === "explainer" ? "EXPLAINER" : "FEATURE"}
+                  </span>
+                ) : null}
                 <a href={`/admin/desk/${row.id}`} className="flex-1 font-medium hover:text-primary">{row.title_hint || "শিরোনামহীন"}</a>
                 <span className="text-xs text-muted-foreground">{row.source_count} সোর্স</span>
               </div>
