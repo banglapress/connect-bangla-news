@@ -183,6 +183,10 @@ export type ArticleInput = {
   research: StructuredResearch | ResearchPacket;
   sources: SourcePacket[];
   depth?: ArticleDepth;
+  editorialType?: "news" | "explainer" | "feature";
+  approvedAngle?: unknown;
+  editorialBrief?: unknown;
+  editorialOutline?: unknown;
 };
 
 export type QualityMetrics = {
