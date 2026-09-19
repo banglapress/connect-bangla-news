@@ -5,6 +5,14 @@ import { assertDeskStaff } from "@/lib/desk/staff";
 import { DEFAULT_GEMINI_MODEL, geminiProvider } from "@/lib/desk/ai/gemini";
 import { articlePublicUrl, fallbackCaption, headlineOf, loadStoryBundle } from "@/lib/desk/social.functions";
 
+function exactHashtags(tags: string[]) {
+  return tags
+    .map((tag) => String(tag).replace(/[^\p{L}\p{M}\p{N}]+/gu, "").trim())
+    .filter((tag) => tag.length >= 2)
+    .slice(0, 3)
+    .map((tag) => "#" + tag);
+}
+
 export const generateDeskCaption = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
@@ -79,6 +87,14 @@ export const generateDeskCaption = createServerFn({ method: "POST" })
         provider = "heuristic";
       }
     }
+    const hashtags = exactHashtags(tags);
+    if (hashtags.length) {
+      caption = caption
+        .replace(/(^|\\n)\\s*(?:#[^\\n]+\\s*)+$/u, "")
+        .trim();
+      caption = [caption, hashtags.join(" ")].filter(Boolean).join("\\n\\n");
+    }
+
     const saved = await context.supabase.from("desk_stories").update({
       social_caption: caption,
       updated_at: new Date().toISOString(),
