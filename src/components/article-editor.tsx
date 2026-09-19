@@ -3,7 +3,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { createArticle, updateArticle } from "@/lib/admin.functions";
+import {
+  createArticle,
+  getArticleFacebookState,
+  publishArticleToFacebook,
+  updateArticle,
+} from "@/lib/admin.functions";
 import { listCategories } from "@/lib/category.functions";
 import { listWriters } from "@/lib/writer.functions";
 import { slugifyBangla } from "@/lib/bangla";
@@ -59,13 +64,21 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [postToFacebook, setPostToFacebook] = useState(true);
   const navigate = useNavigate();
   const create = useServerFn(createArticle);
   const update = useServerFn(updateArticle);
+  const getFacebookState = useServerFn(getArticleFacebookState);
+  const publishFacebook = useServerFn(publishArticleToFacebook);
   const fetchCategories = useServerFn(listCategories);
   const fetchWriters = useServerFn(listWriters);
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
   const writersQuery = useQuery({ queryKey: ["writers"], queryFn: () => fetchWriters() });
+  const facebookStateQuery = useQuery({
+    queryKey: ["article-facebook-state", values.id],
+    enabled: Boolean(values.id),
+    queryFn: () => getFacebookState({ data: { id: values.id as string } }),
+  });
   const categories: SiteCategory[] = categoriesQuery.data?.length ? categoriesQuery.data : CATEGORIES;
   const writers = writersQuery.data ?? [];
 
@@ -120,12 +133,61 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         is_featured: values.is_featured,
         status,
       };
-      if (values.id) await update({ data: { ...payload, id: values.id } });
-      else await create({ data: payload });
-      toast.success(status === "published" ? "খবরটি প্রকাশিত হয়েছে" : "ড্রাফট সংরক্ষিত হয়েছে");
-      navigate({ to: "/admin" });
+
+      const saved = values.id
+        ? await update({ data: { ...payload, id: values.id } })
+        : await create({ data: payload });
+      const articleId = String((saved as { id?: string }).id || values.id || "");
+
+      if (status === "published" && postToFacebook && articleId) {
+        try {
+          const result = await publishFacebook({ data: { id: articleId } });
+          toast.success(
+            result.alreadyPublished
+              ? "খবরটি প্রকাশিত হয়েছে · Facebook-এ আগেই পোস্ট করা আছে"
+              : "খবরটি প্রকাশিত হয়েছে · Facebook-এও পোস্ট হয়েছে",
+          );
+        } catch (facebookError) {
+          setValues((v) => ({ ...v, id: articleId, status: "published" }));
+          await facebookStateQuery.refetch();
+          toast.error(
+            "ওয়েবসাইটে খবরটি প্রকাশিত হয়েছে, কিন্তু Facebook-এ পোস্ট হয়নি: " +
+              (facebookError instanceof Error ? facebookError.message : "Facebook publish failed"),
+          );
+          return;
+        }
+      } else {
+        toast.success(status === "published" ? "খবরটি প্রকাশিত হয়েছে" : "ড্রাফট সংরক্ষিত হয়েছে");
+      }
+
+      if (articleId && articleId !== values.id) {
+        setValues((v) => ({ ...v, id: articleId, status }));
+      }
+      await navigate({ to: "/admin" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "সংরক্ষণ করা যায়নি");
+      toast.error(err instanceof Error ? err.message : "সংরক্ষণ করা যায়নি");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function publishFacebookNow() {
+    if (!values.id) {
+      toast.error("আগে খবরটি সংরক্ষণ করুন");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await publishFacebook({ data: { id: values.id } });
+      toast.success(
+        result.alreadyPublished
+          ? "Facebook-এ এই খবরটি আগেই পোস্ট করা আছে"
+          : "Facebook-এ পোস্ট হয়েছে · " + result.postId,
+      );
+      await facebookStateQuery.refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Facebook-এ পোস্ট করা যায়নি");
+      await facebookStateQuery.refetch();
     } finally {
       setSaving(false);
     }
@@ -236,6 +298,53 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         {uploading && <p className="mt-2 text-sm text-muted-foreground">আপলোড হচ্ছে…</p>}
         <input className={`${inputClass} mt-3`} value={values.image_caption ?? ""} onChange={(e) => set("image_caption", e.target.value)} placeholder="কভার ছবির ক্যাপশন" />
       </div>
+      {values.id ? (
+        <div className="border border-border bg-secondary/30 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Facebook Publishing</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                খবরটি ওয়েবসাইটে প্রকাশ করার সঙ্গে সঙ্গে Facebook Page-এ photo post হবে। Duplicate post স্বয়ংক্রিয়ভাবে আটকানো হবে।
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {facebookStateQuery.data?.configured ? "Facebook configured" : "Facebook not configured"}
+            </span>
+          </div>
+          {values.status !== "published" ? (
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={postToFacebook}
+                onChange={(e) => setPostToFacebook(e.target.checked)}
+                disabled={saving}
+              />
+              প্রকাশের পর Facebook-এ অটো পোস্ট
+            </label>
+          ) : null}
+          {facebookStateQuery.data?.status === "published" ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Facebook-এ পোস্ট হয়েছে{facebookStateQuery.data.postId ? " · " + facebookStateQuery.data.postId : ""}.
+            </p>
+          ) : null}
+          {facebookStateQuery.data?.status === "failed" ? (
+            <p className="mt-3 text-xs text-destructive">
+              আগের Facebook publish ব্যর্থ: {facebookStateQuery.data.error || "অজানা error"}
+            </p>
+          ) : null}
+          {values.status === "published" && facebookStateQuery.data?.status !== "published" ? (
+            <button
+              type="button"
+              disabled={saving || !facebookStateQuery.data?.configured}
+              onClick={() => void publishFacebookNow()}
+              className="mt-3 border border-border px-4 py-2 text-sm hover:bg-secondary disabled:opacity-60"
+            >
+              Facebook-এ এখন পোস্ট করুন
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-6 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={values.is_lead} onChange={(e) => set("is_lead", e.target.checked)} />
