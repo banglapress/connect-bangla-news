@@ -68,7 +68,10 @@ export const setEditorialType = createServerFn({ method: "POST" })
       .from("desk_stories")
       .update({
         editorial_type: data.editorialType,
-        angle_status: data.editorialType === "news" ? "pending" : undefined,
+        angle_status: "pending",
+        editorial_brief: null,
+        approved_angle: null,
+        editorial_outline: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", data.id);
