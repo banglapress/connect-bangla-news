@@ -124,12 +124,12 @@ function facebookCaption(article: {
 
 function facebookArticleImage(story: any, article: any) {
   return (
+    publicImageUrl(story?.card_image_url) ||
+    story?.card_image_url ||
     publicImageUrl(story?.cover_social_url) ||
     story?.cover_social_url ||
     publicImageUrl(story?.cover_image_url) ||
     story?.cover_image_url ||
-    publicImageUrl(story?.card_image_url) ||
-    story?.card_image_url ||
     publicImageUrl(article?.image_url) ||
     article?.image_url ||
     null
@@ -151,7 +151,7 @@ export const getArticleFacebookState = createServerFn({ method: "GET" })
     }
     const storyRes = await context.supabase
       .from("desk_stories")
-      .select("facebook_status,facebook_post_id,facebook_error")
+      .select("id,facebook_status,facebook_post_id,facebook_error")
       .eq("article_id", data.id)
       .maybeSingle();
     if (storyRes.error && !/column|schema cache/i.test(storyRes.error.message)) {
@@ -165,6 +165,7 @@ export const getArticleFacebookState = createServerFn({ method: "GET" })
         : story?.facebook_status === "failed"
           ? ("failed" as const)
           : ("not_posted" as const),
+      storyId: story?.id || null,
       postId: story?.facebook_post_id || null,
       error: story?.facebook_error || null,
     };
@@ -172,7 +173,7 @@ export const getArticleFacebookState = createServerFn({ method: "GET" })
 
 export const publishArticleToFacebook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data) => z.object({ id: z.string().uuid(), confirm: z.literal(true) }).parse(data))
   .handler(async ({ data, context }) => {
     const articleRes = await context.supabase.from("articles").select("*").eq("id", data.id).single();
     if (articleRes.error) throw new Error(articleRes.error.message);
