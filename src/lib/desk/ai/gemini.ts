@@ -227,6 +227,25 @@ function normalizeResearch(raw: any, input: ResearchInput, meta: GeminiCallResul
   };
 }
 
+export async function generateGeminiStructuredJson(
+  prompt: string,
+  schema: Record<string, unknown>,
+  options?: {
+    timeoutMs?: number;
+    maxOutputTokens?: number;
+    thinkingLevel?: "minimal" | "low" | "medium" | "high";
+    model?: string;
+    maxAttempts?: number;
+  },
+) {
+  return generateJson(prompt, schema, options?.timeoutMs ?? 75000, {
+    maxOutputTokens: options?.maxOutputTokens,
+    thinkingLevel: options?.thinkingLevel,
+    model: options?.model,
+    maxAttempts: options?.maxAttempts,
+  });
+}
+
 export const geminiProvider: AIProvider = {
   name: "gemini",
   get model() {
