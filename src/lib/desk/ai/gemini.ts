@@ -307,8 +307,41 @@ export const geminiProvider: AIProvider = {
     const depth = parseArticleDepth(input.depth);
     const target = DEPTH_TARGETS[depth];
     const packed = packDossierForPrompt(input.research, 18000);
+    const editorialType = input.editorialType || "news";
+    const editorialBlock =
+      editorialType === "news"
+        ? "CONTENT MODE: Straight news. Lead with the verified event and keep the structure factual and restrained."
+        : editorialType === "explainer"
+          ? [
+              "CONTENT MODE: EXPLAINER.",
+              "Use the approved angle and central question as the spine.",
+              "Explain causes, mechanisms, chronology, terminology and consequences in layers.",
+              "Do not write this as a simple rewrite of the latest headline.",
+              "Distinguish established facts from inference and unresolved questions.",
+            ].join("\\n")
+          : [
+              "CONTENT MODE: FEATURE.",
+              "Use the approved angle as the spine and build a human-centered narrative only from supported material.",
+              "Open with a real, documented situation, person, place or observable fact when the dossier supports one.",
+              "Then widen from the human stakes to the larger system or issue.",
+              "Never invent a scene, dialogue, emotion, quote or personal detail.",
+              "Keep factual reporting and narrative writing clearly grounded in sources.",
+            ].join("\\n");
+    const editorialResearchBlock =
+      editorialType === "news"
+        ? ""
+        : [
+            "EDITORIAL RESEARCH BRIEF:",
+            JSON.stringify(input.editorialBrief || {}),
+            "APPROVED ANGLE:",
+            JSON.stringify(input.approvedAngle || {}),
+            "EDITORIAL OUTLINE:",
+            JSON.stringify(input.editorialOutline || {}),
+          ].join("\\n\\n");
     const prompt = [
       "You are a newsroom writer for The Connect, not a summarizer.",
+      editorialBlock,
+      editorialResearchBlock,
       "Write a completely original Bangla news article from the FULL research dossier AND the source notes.",
       "Use the full research dossier and source notes.",
       "Synthesize all relevant supported facts, chronology, context, reactions, numbers and details.",
