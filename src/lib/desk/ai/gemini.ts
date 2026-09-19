@@ -373,7 +373,7 @@ export const geminiProvider: AIProvider = {
         ? "Choose a structure that fits the story: breaking, developing or explanatory news."
         : editorialType === "explainer"
           ? "Follow the approved explainer outline. Keep the central question visible throughout and reveal the answer in layers."
-          : "Follow the approved feature outline. Use a documented human-centered opening when supported, then widen to the larger issue."
+          : "Follow the approved feature outline. Use a documented human-centered opening when supported, then widen to the larger issue.",
       "Separate paragraphs with a blank line. A finished Standard or longer article should usually have many paragraphs, not three.",
       `Preferred category slug: ${input.categorySlug || "national"}`,
       `Story title hint: ${input.title}`,
