@@ -92,7 +92,7 @@ export function fallbackCaption(input: { headline: string; excerpt: string; url:
   if (excerpt && excerpt !== input.headline) lines.push(excerpt);
   if (input.url) lines.push(input.url);
   const tags = input.tags
-    .map((tag) => tag.replace(/[^\p{L}\p{N}]+/gu, ""))
+    .map((tag) => tag.replace(/[^\p{L}\p{M}\p{N}]+/gu, ""))
     .filter((tag) => tag.length >= 2)
     .slice(0, 3)
     .map((tag) => `#${tag}`);
