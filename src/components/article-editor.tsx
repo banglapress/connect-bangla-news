@@ -222,8 +222,9 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
           toast.success("খবরটি প্রকাশিত হয়েছে · Facebook-এর ছবি ও caption প্রস্তুত");
           return;
         } catch (facebookError) {
-          toast.error("ওয়েবসাইটে খবরটি প্রকাশিত হয়েছে, কিন্তু Facebook-এর ছবি/caption প্রস্তুত করা যায়নি: " +(
-            facebookError instanceof Error ? facebookError.message : "Facebook preparation failed",
+          toast.error(
+            "ওয়েবসাইটে খবরটি প্রকাশিত হয়েছে, কিন্তু Facebook-এর ছবি/caption প্রস্তুত করা যায়নি: " +
+              (facebookError instanceof Error ? facebookError.message : "Facebook preparation failed"),
           );
           return;
         }
