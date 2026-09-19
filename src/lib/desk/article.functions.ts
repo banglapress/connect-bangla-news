@@ -38,7 +38,22 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
     const names = await supabase.from("news_sources").select("id, name");
     const nameById = new Map((names.data ?? []).map((row: { id: string; name: string }) => [row.id, row.name]));
     const sources = toSourcePackets(rows, nameById);
-    const depth = parseArticleDepth(data.depth || story.article_depth || "standard");
+    const editorialType = story.editorial_type === "feature" || story.editorial_type === "explainer"
+      ? story.editorial_type
+      : "news";
+    const depth = parseArticleDepth(data.depth || story.article_depth || (editorialType === "news" ? "standard" : "detailed"));
+
+    if (editorialType !== "news") {
+      if (rows.length < 2) {
+        throw new Error("Feature/Explainer লেখার আগে অন্তত ২টি source story-তে যোগ করুন");
+      }
+      if (story.angle_status !== "approved" || !story.approved_angle) {
+        throw new Error("আগে একটি editorial angle approve করুন");
+      }
+      if (!story.editorial_outline) {
+        throw new Error("আগে editorial outline তৈরি করুন");
+      }
+    }
 
     // "Generate AI Article" is the manual escape hatch. It must not depend on
     // the user first running Prepare Research. If no dossier exists, build a
@@ -93,6 +108,10 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         research: packet,
         sources,
         depth,
+        editorialType,
+        approvedAngle: story.approved_angle,
+        editorialBrief: story.editorial_brief,
+        editorialOutline: story.editorial_outline,
       });
       const utilization = (packet as StructuredResearch).source_utilization || story.source_utilization || [];
       const checked = validateGeneratedArticle({
@@ -117,6 +136,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
         image_caption: null,
         image_urls: [],
         content_type: "article",
+        editorial_type: editorialType,
         youtube_url: null,
         author_name: "নিজস্ব প্রতিবেদক",
         author_id: context.userId,
@@ -140,6 +160,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
               body: payload.body,
               category_slug: payload.category_slug,
               tags: payload.tags,
+              editorial_type: editorialType,
               status: "draft",
             })
             .eq("id", articleId);
@@ -150,7 +171,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
       }
       if (!articleId) {
         let inserted = await supabase.from("articles").insert(payload).select("id, slug").single();
-        if (inserted.error && /column|schema cache|content_type|image_urls|youtube_url|public_id/i.test(inserted.error.message)) {
+        if (inserted.error && /column|schema cache|content_type|editorial_type|image_urls|youtube_url|public_id/i.test(inserted.error.message)) {
           const basic = { ...payload } as any;
           delete basic.image_urls;
           delete basic.content_type;
