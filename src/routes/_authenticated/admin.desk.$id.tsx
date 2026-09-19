@@ -7,6 +7,7 @@ import { getDeskStoryDetail, prepareResearch, saveDeskArticleDepth } from "@/lib
 import { generateDeskArticle } from "@/lib/desk/article.functions";
 import { addCoverageToStory, findRelatedCoverage, setDiscoveryHitStatus } from "@/lib/desk/discovery.functions";
 import { DeskSocialPanel } from "@/components/desk-social-panel";
+import { EditorialWorkflowPanel } from "@/components/editorial-workflow-panel";
 import { formatBanglaDateTime } from "@/lib/bangla";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -158,6 +159,8 @@ function StoryDetailPage() {
           <a href="/admin/desk" className="border border-border px-3 py-2">Back to Story Monitor</a>
         </div>
       </div>
+
+      <EditorialWorkflowPanel storyId={id} story={story} sources={sources} onRefresh={refresh} />
 
       {diagnostics ? (
         <section className="mb-8 border border-border p-4 text-sm">
