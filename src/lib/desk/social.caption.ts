@@ -38,7 +38,7 @@ export const generateDeskCaption = createServerFn({ method: "POST" })
                         "Write a short Facebook caption in Bangladesh Bangla for The Connect.",
                         "Neutral, concise, no invented facts, no clickbait.",
                         "Do not copy the article. Include the article URL on its own line.",
-                        "Optionally add up to 3 relevant hashtags from the tags.",
+                        "Do not create or alter hashtags. Hashtags will be appended by the application using the article tags exactly as supplied.",
                         `Headline: ${headline}`,
                         excerpt ? `Excerpt: ${excerpt.slice(0, 400)}` : "",
                         `URL: ${url}`,
@@ -50,7 +50,6 @@ export const generateDeskCaption = createServerFn({ method: "POST" })
                 },
               ],
               generationConfig: {
-                temperature: 0.3,
                 responseMimeType: "application/json",
                 responseJsonSchema: {
                   type: "object",
@@ -68,7 +67,10 @@ export const generateDeskCaption = createServerFn({ method: "POST" })
           const text = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("") || "";
           const parsed = text ? JSON.parse(text) : null;
           if (parsed?.caption) {
-            caption = String(parsed.caption).trim();
+            caption = String(parsed.caption)
+              .replace(/(^|\n)\s*#[^\n]+/g, "$1")
+              .replace(/\n{3,}/g, "\n\n")
+              .trim();
             if (url && !caption.includes(url)) caption = `${caption}\n\n${url}`;
             provider = "gemini";
           }
