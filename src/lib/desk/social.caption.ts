@@ -90,9 +90,9 @@ export const generateDeskCaption = createServerFn({ method: "POST" })
     const hashtags = exactHashtags(tags);
     if (hashtags.length) {
       caption = caption
-        .replace(/(^|\\n)\\s*(?:#[^\\n]+\\s*)+$/u, "")
+        .replace(/(^|\n)\s*(?:#[^\n]+\s*)+$/u, "")
         .trim();
-      caption = [caption, hashtags.join(" ")].filter(Boolean).join("\\n\\n");
+      caption = [caption, hashtags.join(" ")].filter(Boolean).join("\n\n");
     }
 
     const saved = await context.supabase.from("desk_stories").update({
