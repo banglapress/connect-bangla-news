@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -15,6 +15,14 @@ import { slugifyBangla } from "@/lib/bangla";
 import { uploadNewsImage } from "@/lib/upload-image";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
 import { DraftCoverImage } from "@/components/draft-cover-image";
+import {
+  generateDeskCaption,
+  getSocialDeskState,
+  proxyDeskImage,
+  saveDeskCaption,
+  saveDeskCard,
+} from "@/lib/desk/social.functions";
+import { renderConnectCard } from "@/lib/desk/card/render-client";
 
 export type EditorValues = {
   id?: string;
@@ -65,11 +73,20 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [postToFacebook, setPostToFacebook] = useState(true);
+  const [fbPreview, setFbPreview] = useState<string | null>(null);
+  const [fbCaption, setFbCaption] = useState("");
+  const [fbApproved, setFbApproved] = useState(false);
+  const [fbPrepared, setFbPrepared] = useState(false);
   const navigate = useNavigate();
   const create = useServerFn(createArticle);
   const update = useServerFn(updateArticle);
   const getFacebookState = useServerFn(getArticleFacebookState);
   const publishFacebook = useServerFn(publishArticleToFacebook);
+  const getSocialState = useServerFn(getSocialDeskState);
+  const saveCard = useServerFn(saveDeskCard);
+  const makeCaption = useServerFn(generateDeskCaption);
+  const persistCaption = useServerFn(saveDeskCaption);
+  const proxyImage = useServerFn(proxyDeskImage);
   const fetchCategories = useServerFn(listCategories);
   const fetchWriters = useServerFn(listWriters);
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchCategories() });
@@ -79,6 +96,18 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     enabled: Boolean(values.id),
     queryFn: () => getFacebookState({ data: { id: values.id as string } }),
   });
+  const socialStateQuery = useQuery({
+    queryKey: ["article-social-state", facebookStateQuery.data?.storyId],
+    enabled: Boolean(facebookStateQuery.data?.storyId),
+    queryFn: () => getSocialState({ data: { id: facebookStateQuery.data!.storyId! } }),
+  });
+  useEffect(() => {
+    const social = socialStateQuery.data;
+    if (!social) return;
+    setFbPreview(social.cardImageUrl || null);
+    setFbCaption(social.caption || "");
+    setFbPrepared(Boolean(social.cardImageUrl && String(social.caption || "").trim()));
+  }, [socialStateQuery.data]);
   const categories: SiteCategory[] = categoriesQuery.data?.length ? categoriesQuery.data : CATEGORIES;
   const writers = writersQuery.data ?? [];
 
