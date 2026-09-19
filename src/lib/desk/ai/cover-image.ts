@@ -1,7 +1,7 @@
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
 export const DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.6-flash";
 export const DEFAULT_GEMINI_COVER_PROMPT_MODEL = "gemini-3.5-flash-lite";
-export const COVER_PROMPT_VERSION = "cover-v4";
+export const COVER_PROMPT_VERSION = "cover-v5-bn";
 
 const RETIRED_IMAGE_MODELS = new Set(["gemini-2.0-flash-preview-image-generation"]);
 
@@ -86,21 +86,22 @@ export async function generateGeminiCoverPrompt(input: CoverArticleContext, time
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
   const model = readGeminiCoverPromptModel();
   const prompt = [
-    "You are the visual editor of a serious Bangladesh digital news publication.",
-    "Convert the supplied article context into ONE production-ready image-generation prompt for an article cover.",
-    "Return ONLY the final image prompt in English. Do not add explanations, labels, bullets, quotation marks, or markdown.",
-    "The image must be minimalist, meaningful, editorial, realistic or sophisticated editorial illustration, and built around ONE clear visual idea.",
-    "Normally show the principal living subject, relevant location, object, infrastructure, environment, or calm aftermath/surroundings.",
-    "When the story concerns death, injury, abuse, crime, disaster, animal mortality, conflict, or other harm, DO NOT depict bodies, wounds, blood, gore, suffering, torture, graphic injury, or a victim in distress. Instead visualize the subject while alive, the setting, the responsible object/infrastructure, environmental context, investigation clues, or a restrained non-graphic aftermath.",
-    "Do not invent a photograph of a real public figure. Do not imitate or identify a politician, celebrity, victim, suspect, or private person unless the article context explicitly requires a generic non-identifiable representation.",
-    "Do not create fake documents, fake screenshots, fake news pages, readable signs, or fabricated evidence.",
-    "NO TEXT inside the image. NO letters, numbers, captions, headlines, logos, watermarks, brand marks, newspaper mastheads, interface elements, or signage with readable writing.",
-    "Leave a clean lower-left area suitable for a small real website logo to be overlaid later by the application.",
-    "The composition must work as a 16:9 horizontal website news cover and crop cleanly to a 4:5 social image without losing the main subject.",
-    "Avoid generic stock-photo aesthetics, overcrowded collages, giant isolated objects, excessive cinematic effects, and meaningless decorative elements.",
-    "Keep the prompt concrete enough for an image model to understand the exact subject, setting, camera viewpoint, composition, light, mood, and visual hierarchy.",
-    "Write about 70-120 words.",
-    "IMPORTANT: do not repeat sensitive harm words from the article in the final image prompt. Translate them into a safe visual concept.",
+    "আপনি The Connect-এর একজন অভিজ্ঞ ভিজ্যুয়াল এডিটর।",
+    "দেওয়া article context থেকে article cover-এর জন্য ONE production-ready image-generation prompt তৈরি করুন।",
+    "শুধু চূড়ান্ত image prompt-টি বাংলায় লিখুন। কোনো explanation, label, bullet, quotation mark বা markdown দেবেন না।",
+    "Prompt-এর ভাষা হবে স্বাভাবিক বাংলাদেশি বাংলা। ইংরেজি বাক্য ব্যবহার করবেন না; প্রয়োজন হলে 16:9-এর মতো প্রযুক্তিগত অনুপাত বা প্রচলিত image-generation term-এর বাংলা রূপ ব্যবহার করুন।",
+    "ছবিটি হবে মিনিমাল, অর্থবহ, সম্পাদকীয় মানের, বাস্তবধর্মী বা পরিশীলিত editorial illustration; পুরো দৃশ্য ONE clear visual idea-কে ঘিরে তৈরি হবে।",
+    "সাধারণত জীবিত মূল ব্যক্তি/প্রাণী, প্রাসঙ্গিক স্থান, বস্তু, অবকাঠামো, পরিবেশ বা শান্ত aftermath/surroundings দেখান—তবে দৃশ্যটি যেন সহজে বোঝা যায়।",
+    "মৃত্যু, আঘাত, নির্যাতন, অপরাধ, দুর্যোগ, প্রাণীর মৃত্যু, সংঘাত বা অন্য কোনো ক্ষতির গল্প হলে কোনো মরদেহ, ক্ষত, রক্ত, gore, যন্ত্রণা, নির্যাতনের দৃশ্য বা distress-এ থাকা ভুক্তভোগী দেখাবেন না। এর বদলে জীবিত অবস্থার বিষয়, স্থান, সংশ্লিষ্ট বস্তু/অবকাঠামো, পরিবেশ, তদন্তের ইঙ্গিত বা সংযত non-graphic aftermath দেখান।",
+    "কোনো বাস্তব public figure-এর বানানো ছবি তৈরি করবেন না। রাজনীতিক, তারকা, ভুক্তভোগী, সন্দেহভাজন বা ব্যক্তিগত ব্যক্তিকে শনাক্তযোগ্যভাবে দেখাবেন না, যদি article context-এ নির্দিষ্টভাবে প্রয়োজন না থাকে।",
+    "ভুয়া নথি, fake screenshot, fake news page, readable sign বা বানানো evidence তৈরি করবেন না।",
+    "ছবির ভেতরে কোনো text, letter, number, caption, headline, logo, watermark, brand mark, newspaper masthead, interface element বা readable signage থাকবে না।",
+    "ছবির নিচের-বাম দিকে পরিষ্কার জায়গা রাখুন, যেখানে application পরে The Connect-এর আসল logo বসাতে পারবে।",
+    "Composition অবশ্যই ১৬:৯ horizontal website news cover হিসেবে কাজ করবে এবং ৪:৫ social crop-এ মূল subject যেন নষ্ট না হয়।",
+    "generic stock-photo look, অতিরিক্ত collage, বিশাল isolated object, অকারণ cinematic effect বা অর্থহীন decorative element এড়িয়ে চলুন।",
+    "Prompt-এ subject, setting, camera viewpoint, composition, light, mood এবং visual hierarchy এতটাই পরিষ্কারভাবে লিখুন যেন image model নির্দিষ্ট দৃশ্যটি বুঝতে পারে।",
+    "প্রায় ৭০-১২০ শব্দের মধ্যে লিখুন।",
+    "IMPORTANT: article-এ থাকা sensitive harm শব্দগুলো final image prompt-এ হুবহু পুনরাবৃত্তি করবেন না। সেগুলোকে নিরাপদ visual concept-এ রূপান্তর করুন।",
     "ARTICLE CONTEXT:",
     safePromptContext(input),
   ].join("\n\n");
