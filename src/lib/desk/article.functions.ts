@@ -151,7 +151,7 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
       if (articleId) {
         const existing = await supabase.from("articles").select("id, status").eq("id", articleId).maybeSingle();
         if (existing.data) {
-          const update = await supabase
+          let update = await supabase
             .from("articles")
             .update({
               title: payload.title,
@@ -164,6 +164,20 @@ export const generateDeskArticle = createServerFn({ method: "POST" })
               status: "draft",
             })
             .eq("id", articleId);
+          if (update.error && /column|schema cache|editorial_type/i.test(update.error.message)) {
+            update = await supabase
+              .from("articles")
+              .update({
+                title: payload.title,
+                slug: payload.slug,
+                excerpt: payload.excerpt,
+                body: payload.body,
+                category_slug: payload.category_slug,
+                tags: payload.tags,
+                status: "draft",
+              })
+              .eq("id", articleId);
+          }
           if (update.error) throw new Error(update.error.message);
         } else {
           articleId = null;
