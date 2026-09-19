@@ -137,6 +137,52 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     toast.success("লেখায় ছবির চিহ্ন বসানো হয়েছে");
   }
 
+  async function prepareFacebookAssets(articleId: string) {
+    const state = await getFacebookState({ data: { id: articleId } });
+    if (!state.storyId) throw new Error("এই article-এর সঙ্গে AI Desk story পাওয়া যায়নি");
+    const social = await getSocialState({ data: { id: state.storyId } });
+    if (!social.photoUrl) throw new Error("Facebook-এর photo card তৈরির জন্য featured image দরকার");
+
+    const cardInput = {
+      logoSrc: social.template.logoUrl,
+      template: social.template,
+      copy: {
+        headline: social.headline,
+        support: social.support,
+        category: social.category,
+        dateLabel: social.dateLabel,
+      },
+      ratio: "4:5" as const,
+      requirePhoto: true as const,
+    };
+
+    let dataUrl: string;
+    try {
+      dataUrl = await renderConnectCard({ ...cardInput, photoSrc: social.photoUrl });
+    } catch {
+      const proxied = await proxyImage({ data: { url: social.photoUrl } });
+      dataUrl = await renderConnectCard({ ...cardInput, photoSrc: proxied.dataUrl });
+    }
+
+    const savedCard = await saveCard({
+      data: {
+        id: state.storyId,
+        dataUrl,
+        ratio: "4:5",
+        headline: social.headline,
+        support: social.support,
+      },
+    });
+    const captionResult = await makeCaption({ data: { id: state.storyId } });
+    setFbPreview(savedCard.url);
+    setFbCaption(captionResult.caption);
+    setFbApproved(false);
+    setFbPrepared(true);
+    await facebookStateQuery.refetch();
+    await socialStateQuery.refetch();
+    return { url: savedCard.url, caption: captionResult.caption };
+  }
+
   async function save(status: "draft" | "published") {
     if (!values.title.trim()) {
       toast.error("শিরোনাম দিন");
@@ -168,30 +214,22 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         : await create({ data: payload });
       const articleId = String((saved as { id?: string }).id || values.id || "");
 
+      setValues((v) => ({ ...v, id: articleId || v.id, status }));
+
       if (status === "published" && postToFacebook && articleId) {
         try {
-          const result = await publishFacebook({ data: { id: articleId } });
-          toast.success(
-            result.alreadyPublished
-              ? "খবরটি প্রকাশিত হয়েছে · Facebook-এ আগেই পোস্ট করা আছে"
-              : "খবরটি প্রকাশিত হয়েছে · Facebook-এও পোস্ট হয়েছে",
-          );
+          await prepareFacebookAssets(articleId);
+          toast.success("খবরটি প্রকাশিত হয়েছে · Facebook-এর ছবি ও caption প্রস্তুত");
+          return;
         } catch (facebookError) {
-          setValues((v) => ({ ...v, id: articleId, status: "published" }));
-          await facebookStateQuery.refetch();
-          toast.error(
-            "ওয়েবসাইটে খবরটি প্রকাশিত হয়েছে, কিন্তু Facebook-এ পোস্ট হয়নি: " +
-              (facebookError instanceof Error ? facebookError.message : "Facebook publish failed"),
+          toast.error("ওয়েবসাইটে খবরটি প্রকাশিত হয়েছে, কিন্তু Facebook-এর ছবি/caption প্রস্তুত করা যায়নি: " +(
+            facebookError instanceof Error ? facebookError.message : "Facebook preparation failed",
           );
           return;
         }
-      } else {
-        toast.success(status === "published" ? "খবরটি প্রকাশিত হয়েছে" : "ড্রাফট সংরক্ষিত হয়েছে");
       }
 
-      if (articleId && articleId !== values.id) {
-        setValues((v) => ({ ...v, id: articleId, status }));
-      }
+      toast.success(status === "published" ? "খবরটি প্রকাশিত হয়েছে" : "ড্রাফট সংরক্ষিত হয়েছে");
       await navigate({ to: "/admin" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "সংরক্ষণ করা যায়নি");
@@ -205,18 +243,29 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
       toast.error("আগে খবরটি সংরক্ষণ করুন");
       return;
     }
+    if (!fbPrepared || !fbPreview) {
+      toast.error("আগে Facebook-এর জন্য ছবি ও caption তৈরি করুন");
+      return;
+    }
+    if (!fbApproved) {
+      toast.error("Facebook-এর ছবি ও caption দেখে Approve করুন");
+      return;
+    }
     setSaving(true);
     try {
-      const result = await publishFacebook({ data: { id: values.id } });
-      toast.success(
-        result.alreadyPublished
-          ? "Facebook-এ এই খবরটি আগেই পোস্ট করা আছে"
-          : "Facebook-এ পোস্ট হয়েছে · " + result.postId,
-      );
+      const state = await getFacebookState({ data: { id: values.id } });
+      if (!state.storyId) throw new Error("এই article-এর সঙ্গে AI Desk story পাওয়া যায়নি");
+      await persistCaption({ data: { id: state.storyId, caption: fbCaption } });
+      const result = await publishFacebook({ data: { id: values.id, confirm: true } });
+      toast.success("Facebook-এ পোস্ট হয়েছে · " + result.postId);
+      setFbApproved(false);
       await facebookStateQuery.refetch();
+      await socialStateQuery.refetch();
+      await navigate({ to: "/admin" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Facebook-এ পোস্ট করা যায়নি");
       await facebookStateQuery.refetch();
+      await socialStateQuery.refetch();
     } finally {
       setSaving(false);
     }
