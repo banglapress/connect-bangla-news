@@ -147,7 +147,13 @@ export const getArticleFacebookState = createServerFn({ method: "GET" })
       .maybeSingle();
     if (articleRes.error) throw new Error(articleRes.error.message);
     if (!articleRes.data) {
-      return { configured: facebookPublicStatus().configured, status: "not_posted" as const, postId: null, error: null };
+      return {
+        configured: facebookPublicStatus().configured,
+        status: "not_posted" as const,
+        storyId: null,
+        postId: null,
+        error: null,
+      };
     }
     const storyRes = await context.supabase
       .from("desk_stories")
