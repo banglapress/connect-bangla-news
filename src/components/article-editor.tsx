@@ -383,13 +383,15 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
             <div>
               <p className="text-sm font-medium">Facebook Publishing</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                খবরটি ওয়েবসাইটে প্রকাশ করার সঙ্গে সঙ্গে Facebook Page-এ photo post হবে। Duplicate post স্বয়ংক্রিয়ভাবে আটকানো হবে।
+                ওয়েবসাইটে Publish করার পর Facebook-এর জন্য আলাদা ৪:৫ photo card ও caption তৈরি হবে।
+                Approve না করা পর্যন্ত Facebook-এ কোনো পোস্ট যাবে না।
               </p>
             </div>
             <span className="text-xs text-muted-foreground">
               {facebookStateQuery.data?.configured ? "Facebook configured" : "Facebook not configured"}
             </span>
           </div>
+
           {values.status !== "published" ? (
             <label className="mt-3 flex items-center gap-2 text-sm">
               <input
@@ -398,9 +400,73 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
                 onChange={(e) => setPostToFacebook(e.target.checked)}
                 disabled={saving}
               />
-              প্রকাশের পর Facebook-এ অটো পোস্ট
+              Publish-এর পর Facebook-এর ছবি ও caption auto-prepare করুন
             </label>
           ) : null}
+
+          {fbPreview ? (
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,300px)_1fr]">
+              <div>
+                <p className="mb-2 text-xs font-medium">Facebook Photo Card</p>
+                <img
+                  src={fbPreview}
+                  alt="Facebook photo card preview"
+                  className="w-full border border-border bg-secondary object-contain"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="block text-xs font-medium">
+                  Facebook Caption
+                  <textarea
+                    className="mt-1 min-h-40 w-full border border-border bg-background px-3 py-2 leading-6"
+                    value={fbCaption}
+                    onChange={(e) => {
+                      setFbCaption(e.target.value);
+                      setFbApproved(false);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={saving || !facebookStateQuery.data?.storyId}
+                  onClick={() => void prepareFacebookAssets(values.id!)}
+                  className="border border-border px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  নতুন ছবি ও caption তৈরি করুন
+                </button>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={fbApproved}
+                    onChange={(e) => setFbApproved(e.target.checked)}
+                    disabled={saving || !fbPrepared}
+                  />
+                  আমি Facebook-এর ছবি ও caption পরীক্ষা করেছি। পোস্ট করা অনুমোদিত।
+                </label>
+                {values.status === "published" && facebookStateQuery.data?.status !== "published" ? (
+                  <button
+                    type="button"
+                    disabled={saving || !fbPrepared || !fbApproved || !facebookStateQuery.data?.configured}
+                    onClick={() => void publishFacebookNow()}
+                    className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                  >
+                    Approve করে Facebook-এ পোস্ট করুন
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : values.status === "published" && facebookStateQuery.data?.status !== "published" ? (
+            <button
+              type="button"
+              disabled={saving || !facebookStateQuery.data?.configured}
+              onClick={() => void prepareFacebookAssets(values.id!)}
+              className="mt-4 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+            >
+              Facebook-এর জন্য ছবি ও caption তৈরি করুন
+            </button>
+          ) : null}
+
           {facebookStateQuery.data?.status === "published" ? (
             <p className="mt-3 text-xs text-muted-foreground">
               Facebook-এ পোস্ট হয়েছে{facebookStateQuery.data.postId ? " · " + facebookStateQuery.data.postId : ""}.
@@ -410,16 +476,6 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
             <p className="mt-3 text-xs text-destructive">
               আগের Facebook publish ব্যর্থ: {facebookStateQuery.data.error || "অজানা error"}
             </p>
-          ) : null}
-          {values.status === "published" && facebookStateQuery.data?.status !== "published" ? (
-            <button
-              type="button"
-              disabled={saving || !facebookStateQuery.data?.configured}
-              onClick={() => void publishFacebookNow()}
-              className="mt-3 border border-border px-4 py-2 text-sm hover:bg-secondary disabled:opacity-60"
-            >
-              Facebook-এ এখন পোস্ট করুন
-            </button>
           ) : null}
         </div>
       ) : null}
