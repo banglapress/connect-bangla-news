@@ -114,7 +114,7 @@ function facebookCaption(article: {
   if (excerpt && excerpt !== title) lines.push(excerpt);
   if (url) lines.push(url);
   const tags = (article.tags || [])
-    .map((tag) => String(tag).replace(/[^\p{L}\p{N}]+/gu, ""))
+    .map((tag) => String(tag).replace(/[^\p{L}\p{M}\p{N}]+/gu, ""))
     .filter((tag) => tag.length >= 2)
     .slice(0, 3)
     .map((tag) => "#" + tag);
