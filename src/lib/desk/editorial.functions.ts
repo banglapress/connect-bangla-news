@@ -4,7 +4,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { discoverRelatedCoverage } from "@/lib/desk/discovery";
 import { toSourcePackets } from "@/lib/desk/research.functions";
-import { generateEditorialBrief, generateEditorialOutline } from "@/lib/desk/editorial-ai";
+import {
+  generateEditorialBrief,
+  generateEditorialOutline as buildEditorialOutline,
+} from "@/lib/desk/editorial-ai";
 
 const EDITORIAL_TYPES = ["news", "explainer", "feature"] as const;
 type EditorialType = (typeof EDITORIAL_TYPES)[number];
@@ -241,7 +244,7 @@ export const generateEditorialOutline = createServerFn({ method: "POST" })
       throw new Error("আগে Research Brief তৈরি করুন");
     }
 
-    const outline = await generateEditorialOutline({
+    const outline = await buildEditorialOutline({
       title: String(story.title_hint || story.draft_title || "").trim(),
       editorialType: story.editorial_type,
       brief: story.editorial_brief,
