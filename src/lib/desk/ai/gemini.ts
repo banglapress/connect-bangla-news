@@ -318,7 +318,7 @@ export const geminiProvider: AIProvider = {
               "Explain causes, mechanisms, chronology, terminology and consequences in layers.",
               "Do not write this as a simple rewrite of the latest headline.",
               "Distinguish established facts from inference and unresolved questions.",
-            ].join("\\n")
+            ].join("\n")
           : [
               "CONTENT MODE: FEATURE.",
               "Use the approved angle as the spine and build a human-centered narrative only from supported material.",
@@ -326,7 +326,7 @@ export const geminiProvider: AIProvider = {
               "Then widen from the human stakes to the larger system or issue.",
               "Never invent a scene, dialogue, emotion, quote or personal detail.",
               "Keep factual reporting and narrative writing clearly grounded in sources.",
-            ].join("\\n");
+            ].join("\n");
     const editorialResearchBlock =
       editorialType === "news"
         ? ""
@@ -337,12 +337,14 @@ export const geminiProvider: AIProvider = {
             JSON.stringify(input.approvedAngle || {}),
             "EDITORIAL OUTLINE:",
             JSON.stringify(input.editorialOutline || {}),
-          ].join("\\n\\n");
+          ].join("\n\n");
     const prompt = [
       "You are a newsroom writer for The Connect, not a summarizer.",
       editorialBlock,
       editorialResearchBlock,
-      "Write a completely original Bangla news article from the FULL research dossier AND the source notes.",
+      editorialType === "news"
+        ? "Write a completely original Bangla news article from the FULL research dossier AND the source notes."
+        : "Write a completely original Bangla long-form piece from the FULL research dossier, approved editorial angle and outline, AND the source notes.",
       "Use the full research dossier and source notes.",
       "Synthesize all relevant supported facts, chronology, context, reactions, numbers and details.",
       "Do not summarize the story in only a few paragraphs.",
@@ -367,7 +369,11 @@ export const geminiProvider: AIProvider = {
             ? "Detailed target: about 1050 words (900–1300)."
             : "Comprehensive target: 1400–1600 words when the dossier and source notes support it (range 1200–1800).",
       "Only write a short article if the dossier and source notes are genuinely metadata-only. Then set article_status to needs_review.",
-      "Choose a structure that fits the story: breaking, developing, human-interest or explanatory.",
+      editorialType === "news"
+        ? "Choose a structure that fits the story: breaking, developing or explanatory news."
+        : editorialType === "explainer"
+          ? "Follow the approved explainer outline. Keep the central question visible throughout and reveal the answer in layers."
+          : "Follow the approved feature outline. Use a documented human-centered opening when supported, then widen to the larger issue."
       "Separate paragraphs with a blank line. A finished Standard or longer article should usually have many paragraphs, not three.",
       `Preferred category slug: ${input.categorySlug || "national"}`,
       `Story title hint: ${input.title}`,
