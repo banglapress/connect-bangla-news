@@ -20,11 +20,19 @@ export const listDeskStories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertDeskStaff(context as { supabase: any; userId: string });
-    const storiesRes = await context.supabase
+    let storiesRes = await context.supabase
       .from("desk_stories")
       .select("id, title_hint, category_slug, editorial_type, status, article_id, source_count, warning, updated_at, created_at")
       .order("updated_at", { ascending: false })
       .limit(80);
+
+    if (storiesRes.error && /column|schema cache|editorial_type/i.test(storiesRes.error.message)) {
+      storiesRes = await context.supabase
+        .from("desk_stories")
+        .select("id, title_hint, category_slug, status, article_id, source_count, warning, updated_at, created_at")
+        .order("updated_at", { ascending: false })
+        .limit(80);
+    }
     if (storiesRes.error) throw new Error(storiesRes.error.message);
     const stories = (storiesRes.data ?? []) as DeskStoryRow[];
 
