@@ -130,7 +130,7 @@ export function DeskSocialPanel({ storyId }: { storyId: string }) {
     <section className="mb-8 border border-border p-4 text-sm">
       <h2 className="font-serif text-lg font-bold">Social Publishing</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Fixed The Connect template. Text is drawn on the card. Facebook never posts automatically.
+        Fixed The Connect template. Text is drawn on the card. Desk-এর এই panel থেকে Facebook publish manual; Article editor-এর Publish option থেকে auto-post করা যায়।
       </p>
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
         <div>
