@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -45,7 +44,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/admin`,
+            emailRedirectTo: window.location.origin + "/admin",
             data: { display_name: name || email.split("@")[0] },
           },
         });
@@ -68,15 +67,21 @@ function AuthPage() {
   }
 
   async function handleGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/admin",
+      },
     });
-    if (result.error) {
+
+    if (error) {
       toast.error("গুগল দিয়ে প্রবেশ করা যায়নি");
       return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/admin" });
+
+    if (data?.url) {
+      window.location.assign(data.url);
+    }
   }
 
   return (
