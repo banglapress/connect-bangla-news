@@ -5,6 +5,7 @@ import { ArticleCard } from "@/components/article-card";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { publicImageUrl } from "@/lib/image";
+import { renderArticleBody } from "@/lib/article-html";
 
 const articleQuery = (slug: string) =>
   queryOptions({
@@ -116,14 +117,10 @@ function ArticlePage() {
             </figure>
           ) : null}
 
-          <div className="article-body mt-6">
-            {article.body
-              .split(/\n{2,}/)
-              .filter(Boolean)
-              .map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-          </div>
+          <div
+            className="article-body mt-6"
+            dangerouslySetInnerHTML={{ __html: renderArticleBody(article.body) }}
+          />
 
           {article.tags.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-2">
