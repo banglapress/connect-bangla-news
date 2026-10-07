@@ -1,9 +1,41 @@
--- The Connect fresh Supabase bootstrap
--- Use on a BRAND-NEW Supabase project.
--- This rebuilds the current application schema without sample articles.
--- It is safe to run more than once on the same empty/new project.
+-- The Connect complete Supabase bootstrap + demo data
+-- Use this on the dedicated News Supabase project.
+-- IMPORTANT: this resets only The Connect application's public tables/functions
+-- and the news-images storage bucket. It does NOT delete auth.users.
+-- It is designed so a partially-initialized fresh project can be rebuilt cleanly.
 
 begin;
+
+-- ---------------------------------------------------------------------------
+-- Clean reset of application-owned objects
+-- ---------------------------------------------------------------------------
+
+drop function if exists public.handle_new_user() cascade;
+drop function if exists public.has_role(uuid, public.app_role) cascade;
+drop function if exists public.is_staff(uuid) cascade;
+drop function if exists public.ensure_first_admin() cascade;
+drop function if exists public.protect_last_admin() cascade;
+drop function if exists public.set_updated_at() cascade;
+
+drop table if exists public.desk_story_images cascade;
+drop table if exists public.desk_discovery_hits cascade;
+drop table if exists public.desk_fact_checks cascade;
+drop table if exists public.desk_source_claims cascade;
+drop table if exists public.desk_story_sources cascade;
+drop table if exists public.desk_jobs cascade;
+drop table if exists public.desk_settings cascade;
+drop table if exists public.desk_stories cascade;
+drop table if exists public.news_sources cascade;
+drop table if exists public.writers cascade;
+drop table if exists public.articles cascade;
+drop table if exists public.categories cascade;
+drop table if exists public.user_roles cascade;
+drop table if exists public.profiles cascade;
+
+drop type if exists public.app_role cascade;
+
+delete from storage.objects where bucket_id = 'news-images';
+delete from storage.buckets where id = 'news-images';
 
 -- ---------------------------------------------------------------------------
 -- Roles / profiles
@@ -146,6 +178,15 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Promote the earliest existing Auth account to admin.
+-- This is needed when the Auth account was created before this schema was installed.
+insert into public.user_roles (user_id, role)
+select id, 'admin'
+from auth.users
+order by created_at asc, id asc
+limit 1
+on conflict (user_id, role) do nothing;
 
 create or replace function public.ensure_first_admin()
 returns boolean
@@ -694,6 +735,99 @@ set homepage_url = excluded.homepage_url,
     discovery_mode = excluded.discovery_mode,
     access_status = excluded.access_status,
     updated_at = now();
+
+-- ---------------------------------------------------------------------------
+-- Demo / sample content
+-- ---------------------------------------------------------------------------
+-- These rows intentionally mirror the original application's demo content so
+-- the rebuilt site is immediately understandable. They are published demo
+-- articles, not live reporting.
+
+insert into public.articles (
+  title, slug, excerpt, body, category_slug, tags, author_name,
+  is_lead, is_featured, status, published_at
+)
+values
+(
+  'অর্থনীতিতে গতি ফেরাতে নতুন পদক্ষেপ ঘোষণা',
+  'orthonitite-goti-ferate-notun-podokkhep',
+  'রপ্তানি বাড়াতে ও মূল্যস্ফীতি নিয়ন্ত্রণে একগুচ্ছ সিদ্ধান্তের কথা জানিয়েছে সংশ্লিষ্ট কর্তৃপক্ষ।',
+  E'রপ্তানি খাতে গতি ফেরাতে এবং মূল্যস্ফীতি নিয়ন্ত্রণে রাখতে নতুন কয়েকটি পদক্ষেপের কথা জানানো হয়েছে.\n\nবিশ্লেষকরা বলছেন, স্বল্পমেয়াদে এর প্রভাব সীমিত হলেও দীর্ঘমেয়াদে বিনিয়োগে আস্থা ফিরতে পারে। ছোট ও মাঝারি উদ্যোক্তাদের জন্য সহজ শর্তে ঋণের ব্যবস্থা রাখার কথাও বলা হয়েছে।\n\nসংশ্লিষ্টরা মনে করছেন, বাস্তবায়নই হবে আসল চ্যালেঞ্জ।',
+  'economy',
+  '{"অর্থনীতি","রপ্তানি"}',
+  'নিজস্ব প্রতিবেদক',
+  true, true, 'published', now() - interval '2 hours'
+),
+(
+  'রাজধানীতে যানজট কমাতে নতুন পরিকল্পনা',
+  'rajdhanite-janjot-komate-notun-porikolpona',
+  'নগর পরিবহন ব্যবস্থাপনায় পরিবর্তন এনে যানজট কমানোর উদ্যোগ নেওয়া হচ্ছে।',
+  E'নগর পরিবহন ব্যবস্থাপনায় ধাপে ধাপে পরিবর্তন এনে যানজট কমানোর পরিকল্পনার কথা জানানো হয়েছে।\n\nপরিকল্পনায় গণপরিবহনকে অগ্রাধিকার দেওয়া, নির্দিষ্ট লেন চালু এবং সিগন্যাল ব্যবস্থার আধুনিকায়নের কথা রয়েছে।',
+  'national',
+  '{"ঢাকা","পরিবহন"}',
+  'নিজস্ব প্রতিবেদক',
+  false, true, 'published', now() - interval '5 hours'
+),
+(
+  'সিরিজ জয়ের সুযোগ সামনে, প্রস্তুত দল',
+  'series-joyer-sujog-samne-prostut-dol',
+  'শেষ ম্যাচে জিতলেই সিরিজ, আত্মবিশ্বাসী ক্রিকেটাররা।',
+  E'শেষ ম্যাচ জিতলেই সিরিজ নিশ্চিত। অনুশীলনে খেলোয়াড়দের মনোভাব ইতিবাচক বলে জানিয়েছেন কোচ।\n\nব্যাটিং লাইনআপে একটি পরিবর্তনের সম্ভাবনা রয়েছে।',
+  'sports',
+  '{"ক্রিকেট"}',
+  'ক্রীড়া প্রতিবেদক',
+  false, true, 'published', now() - interval '8 hours'
+),
+(
+  'মতামত: শিক্ষায় বিনিয়োগই ভবিষ্যতের সবচেয়ে নিরাপদ বিনিয়োগ',
+  'motamot-shikkhay-biniyog',
+  'একটি প্রজন্মের দক্ষতা তৈরি না হলে অর্থনীতির অগ্রগতি টেকসই হয় না।',
+  E'শিক্ষা খাতে ব্যয়কে অনেক সময় খরচ হিসেবে দেখা হয়, অথচ এটি আসলে বিনিয়োগ।\n\nদক্ষ জনশক্তি ছাড়া প্রযুক্তিনির্ভর অর্থনীতিতে প্রতিযোগিতা করা কঠিন। শ্রেণিকক্ষের মান, শিক্ষক প্রশিক্ষণ ও গবেষণায় বরাদ্দ—তিনটিই সমান জরুরি।',
+  'opinion',
+  '{"মতামত","শিক্ষা"}',
+  'সম্পাদকীয় বিভাগ',
+  false, false, 'published', now() - interval '1 day'
+),
+(
+  'বিশ্ব রাজনীতিতে নতুন সমীকরণ',
+  'bishwa-rajnitite-notun-somikoron',
+  'আঞ্চলিক জোটগুলোর মধ্যে সমঝোতার নতুন ইঙ্গিত মিলেছে।',
+  E'আঞ্চলিক জোটগুলোর মধ্যে সাম্প্রতিক আলোচনায় সমঝোতার ইঙ্গিত পাওয়া গেছে।\n\nকূটনীতিকরা বলছেন, বাণিজ্য ও নিরাপত্তা—দুই ক্ষেত্রেই এর প্রভাব পড়তে পারে।',
+  'international',
+  '{"কূটনীতি"}',
+  'আন্তর্জাতিক ডেস্ক',
+  false, false, 'published', now() - interval '1 day 4 hours'
+),
+(
+  'প্রবাসী আয়ে ইতিবাচক ধারা',
+  'probashi-aye-itibachok-dhara',
+  'বৈধ পথে রেমিট্যান্স পাঠানোর হার বেড়েছে বলে জানা গেছে।',
+  E'বৈধ পথে রেমিট্যান্স পাঠানোর প্রবণতা বেড়েছে। প্রবাসীরা বলছেন, সেবা সহজ হলে এ ধারা আরও বাড়বে।',
+  'probash',
+  '{"রেমিট্যান্স"}',
+  'নিজস্ব প্রতিবেদক',
+  false, false, 'published', now() - interval '2 days'
+),
+(
+  'নতুন চলচ্চিত্র ঘিরে দর্শকের আগ্রহ',
+  'notun-cholochitro-ghire-agroho',
+  'মুক্তির আগেই আলোচনায় নতুন ছবিটি।',
+  E'মুক্তির আগেই আলোচনায় এসেছে নতুন ছবিটি। নির্মাতা জানিয়েছেন, গল্পটি সমকালীন বাস্তবতা নিয়ে।',
+  'entertainment',
+  '{"সিনেমা"}',
+  'বিনোদন ডেস্ক',
+  false, false, 'published', now() - interval '2 days 6 hours'
+),
+(
+  'স্বাস্থ্যকর জীবনযাপনে ছোট অভ্যাসের বড় প্রভাব',
+  'sasthokor-jibonjapon-obhyas',
+  'প্রতিদিনের কয়েকটি অভ্যাসই দীর্ঘমেয়াদে পার্থক্য গড়ে দেয়।',
+  E'পর্যাপ্ত ঘুম, নিয়মিত হাঁটা এবং পরিমিত খাবার—এই তিনটি অভ্যাসই দীর্ঘমেয়াদে বড় পার্থক্য গড়ে দেয় বলে মনে করেন চিকিৎসকরা।',
+  'lifestyle',
+  '{"স্বাস্থ্য"}',
+  'লাইফস্টাইল ডেস্ক',
+  false, false, 'published', now() - interval '3 days'
+);
 
 -- ---------------------------------------------------------------------------
 -- Storage
