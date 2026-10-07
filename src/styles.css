@@ -164,4 +164,63 @@
     line-height: 1.95;
     font-size: 1.0625rem;
   }
+
+  & h2,
+  & h3 {
+    margin-top: 2rem;
+    margin-bottom: 0.85rem;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  & h2 { font-size: 1.5rem; }
+  & h3 { font-size: 1.25rem; }
+
+  & blockquote {
+    margin: 1.5rem 0;
+    border-inline-start: 3px solid var(--color-primary);
+    padding-inline-start: 1rem;
+    font-family: var(--font-serif);
+    font-size: 1.08rem;
+  }
+
+  & ul,
+  & ol {
+    margin: 1rem 0 1.25rem;
+    padding-inline-start: 1.5rem;
+  }
+
+  & ul { list-style: disc; }
+  & ol { list-style: decimal; }
+
+  & li { margin-bottom: 0.45rem; }
+
+  & img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0.25rem;
+  }
+
+  & figcaption {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: var(--color-muted-foreground);
+  }
+
+  & a {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+
+  & pre {
+    overflow-x: auto;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    background: var(--color-secondary);
+    font-size: 0.9rem;
+  }
 }
