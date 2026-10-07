@@ -34,8 +34,9 @@ drop table if exists public.profiles cascade;
 
 drop type if exists public.app_role cascade;
 
-delete from storage.objects where bucket_id = 'news-images';
-delete from storage.buckets where id = 'news-images';
+-- Do not delete rows directly from storage.objects/storage.buckets.
+-- Supabase protects these tables from direct destructive SQL operations.
+-- The bucket is created or normalized below through its metadata insert.
 
 -- ---------------------------------------------------------------------------
 -- Roles / profiles
