@@ -179,6 +179,14 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Rebuild profiles for any Auth accounts that already existed.
+insert into public.profiles (id, display_name)
+select
+  id,
+  coalesce(raw_user_meta_data ->> 'display_name', split_part(email, '@', 1))
+from auth.users
+on conflict (id) do nothing;
+
 -- Promote the earliest existing Auth account to admin.
 -- This is needed when the Auth account was created before this schema was installed.
 insert into public.user_roles (user_id, role)
@@ -752,7 +760,7 @@ values
   'অর্থনীতিতে গতি ফেরাতে নতুন পদক্ষেপ ঘোষণা',
   'orthonitite-goti-ferate-notun-podokkhep',
   'রপ্তানি বাড়াতে ও মূল্যস্ফীতি নিয়ন্ত্রণে একগুচ্ছ সিদ্ধান্তের কথা জানিয়েছে সংশ্লিষ্ট কর্তৃপক্ষ।',
-  E'রপ্তানি খাতে গতি ফেরাতে এবং মূল্যস্ফীতি নিয়ন্ত্রণে রাখতে নতুন কয়েকটি পদক্ষেপের কথা জানানো হয়েছে.\n\nবিশ্লেষকরা বলছেন, স্বল্পমেয়াদে এর প্রভাব সীমিত হলেও দীর্ঘমেয়াদে বিনিয়োগে আস্থা ফিরতে পারে। ছোট ও মাঝারি উদ্যোক্তাদের জন্য সহজ শর্তে ঋণের ব্যবস্থা রাখার কথাও বলা হয়েছে।\n\nসংশ্লিষ্টরা মনে করছেন, বাস্তবায়নই হবে আসল চ্যালেঞ্জ।',
+  E'রপ্তানি খাতে গতি ফেরাতে এবং মূল্যস্ফীতি নিয়ন্ত্রণে রাখতে নতুন কয়েকটি পদক্ষেপের কথা জানানো হয়েছে।\n\nবিশ্লেষকরা বলছেন, স্বল্পমেয়াদে এর প্রভাব সীমিত হলেও দীর্ঘমেয়াদে বিনিয়োগে আস্থা ফিরতে পারে। ছোট ও মাঝারি উদ্যোক্তাদের জন্য সহজ শর্তে ঋণের ব্যবস্থা রাখার কথাও বলা হয়েছে।\n\nসংশ্লিষ্টরা মনে করছেন, বাস্তবায়নই হবে আসল চ্যালেঞ্জ।',
   'economy',
   '{"অর্থনীতি","রপ্তানি"}',
   'নিজস্ব প্রতিবেদক',
