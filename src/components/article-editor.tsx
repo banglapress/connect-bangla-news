@@ -15,6 +15,7 @@ import { slugifyBangla } from "@/lib/bangla";
 import { uploadNewsImage } from "@/lib/upload-image";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
 import { DraftCoverImage } from "@/components/draft-cover-image";
+import RichArticleEditor from "@/components/rich-article-editor";
 import {
   generateDeskCaption,
   getSocialDeskState,
@@ -72,6 +73,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [insertImageUrl, setInsertImageUrl] = useState<string | null>(null);
   const [postToFacebook, setPostToFacebook] = useState(true);
   const [fbPreview, setFbPreview] = useState<string | null>(null);
   const [fbCaption, setFbCaption] = useState("");
@@ -131,10 +133,11 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     }
   }
 
-  function insertImageToken(index: number) {
-    const token = `{{image:${index + 1}}}`;
-    setValues((v) => ({ ...v, body: v.body ? `${v.body}\n\n${token}\n\n` : `${token}\n\n` }));
-    toast.success("লেখায় ছবির চিহ্ন বসানো হয়েছে");
+  function insertImage(index: number) {
+    const url = values.image_urls?.[index];
+    if (!url) return;
+    setInsertImageUrl(url);
+    toast.success("ছবিটি লেখার বর্তমান অবস্থানে বসানো হবে");
   }
 
   async function prepareFacebookAssets(articleId: string) {
@@ -314,8 +317,18 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         <textarea className={`${inputClass} min-h-20`} value={values.excerpt} onChange={(e) => set("excerpt", e.target.value)} />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">মূল লেখা</label>
-        <textarea className={`${inputClass} min-h-72 leading-relaxed`} value={values.body} onChange={(e) => set("body", e.target.value)} placeholder="ভেতরের ছবির জন্য {{image:1}} লিখুন" />
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <label className="block text-sm font-medium">মূল লেখা</label>
+          <span className="text-xs text-muted-foreground">সমৃদ্ধ টেক্সট এডিটর · সরাসরি formatted লেখা লিখুন</span>
+        </div>
+        <RichArticleEditor
+          initialHtml={values.body}
+          imageUrls={values.image_urls ?? []}
+          insertImageUrl={insertImageUrl}
+          insertImageCaption={values.image_caption ?? ""}
+          onImageInserted={() => setInsertImageUrl(null)}
+          onChange={(html) => set("body", html)}
+        />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -359,7 +372,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
             <div key={`${url}-${index}`} className="border border-border p-2">
               <img src={url} alt="" className="mb-2 h-28 w-full object-cover" />
               <div className="flex flex-wrap gap-2 text-xs">
-                <button type="button" className="text-primary hover:underline" onClick={() => insertImageToken(index)}>লেখায় বসাও</button>
+                <button type="button" className="text-primary hover:underline" onClick={() => insertImage(index)}>লেখায় বসাও</button>
                 <button type="button" className="text-primary hover:underline" onClick={() => set("image_url", url)}>কভার</button>
                 <button type="button" className="text-destructive hover:underline" onClick={() => setValues((v) => {
                   const next = (v.image_urls ?? []).filter((_, i) => i !== index);
