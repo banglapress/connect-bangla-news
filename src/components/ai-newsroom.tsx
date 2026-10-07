@@ -333,7 +333,10 @@ export function AiNewsroom() {
                 {label}
               </button>
             ))}
-            <a href="/admin/desk/settings" className="ml-auto inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+            <a href="/admin/facebook-cards" className="ml-auto inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
+              Facebook Photo Cards
+            </a>
+            <a href="/admin/desk/settings" className="inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground">
               <Settings2 className="h-4 w-4" /> Settings
             </a>
           </div>
