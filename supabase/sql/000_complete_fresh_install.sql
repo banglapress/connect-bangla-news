@@ -705,19 +705,6 @@ values
     'National news agency. No public official RSS/API found. Discovery-only until a feed is published.',
     'news_agency', 'manual', 'no_feed'
   )
-on conflict (name) do update
-set homepage_url = excluded.homepage_url,
-    rss_url = excluded.rss_url,
-    category_slug = excluded.category_slug,
-    active = excluded.active,
-    trust_level = excluded.trust_level,
-    priority = excluded.priority,
-    notes = excluded.notes,
-    source_kind = excluded.source_kind,
-    discovery_mode = excluded.discovery_mode,
-    access_status = excluded.access_status,
-    updated_at = now();
-
 -- ---------------------------------------------------------------------------
 -- Demo / sample content
 -- ---------------------------------------------------------------------------
