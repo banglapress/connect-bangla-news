@@ -72,6 +72,7 @@ function AdminDashboard() {
           {access.data.roles.includes("admin") && <Link to="/admin/categories" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ক্যাটেগরি</Link>}
           <Link to="/admin/writers" className="border border-border px-4 py-2 text-sm hover:bg-secondary">লেখক</Link>
           <a href="/admin/desk" className="border border-border px-4 py-2 text-sm hover:bg-secondary">এআই ডেস্ক</a>
+          <Link to="/admin/facebook-cards" className="border border-border px-4 py-2 text-sm hover:bg-secondary">ফেসবুক ফটোকার্ড</Link>
           <Link to="/admin/new" className="bg-primary px-4 py-2 text-sm text-primary-foreground">নতুন খবর</Link>
           <button onClick={signOut} className="border border-border px-4 py-2 text-sm">সাইন আউট</button>
         </div>
