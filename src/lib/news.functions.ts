@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { listCategories } from "@/lib/category.functions";
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/integrations/supabase/env";
 
 export type ArticleCard = {
   id: string;
@@ -36,12 +37,11 @@ const DETAIL_BASIC =
   "id, title, slug, excerpt, body, category_slug, tags, image_url, image_caption, author_name, published_at";
 
 function publicClient() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key =
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    "";
+  const url = getSupabaseUrl();
+  const key = getSupabasePublishableKey();
+  if (!url || !key) {
+    throw new Error("Supabase is not configured: set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (or their VITE_/NEXT_PUBLIC_ variants) in Vercel.");
+  }
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
