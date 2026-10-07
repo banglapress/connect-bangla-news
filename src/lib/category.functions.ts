@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/integrations/supabase/env";
 
 function normalize(rows: any[] | null): SiteCategory[] {
   return (rows ?? []).map((row) => ({
@@ -17,8 +18,8 @@ function normalize(rows: any[] | null): SiteCategory[] {
 
 export const listCategories = createServerFn({ method: "GET" }).handler(async () => {
   const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+  const url = getSupabaseUrl();
+  const key = getSupabasePublishableKey();
   if (!url || !key) return CATEGORIES;
 
   const supabase = createClient(url, key);
