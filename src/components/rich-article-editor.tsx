@@ -132,26 +132,29 @@ function normalizeInitialHtml(value: string, imageUrls: string[]) {
   const trimmed = value.trim();
   if (!trimmed) return "";
 
-  if (/<(?:p|div|figure|img|strong|em|u|s|code|blockquote|ul|ol|li)\\b/i.test(trimmed)) {
+  if (/<(?:p|div|figure|img|strong|em|u|s|code|blockquote|ul|ol|li)\b/i.test(trimmed)) {
     return trimmed;
   }
 
-  const expanded = trimmed.replace(/\\{\\{image:(\\d+)\\}\\}/gi, (_, rawIndex) => {
-    const index = Number(rawIndex) - 1;
-    const src = imageUrls[index];
-    if (!src) return "";
-    const safe = escapeHtml(src);
-    return `<figure class="my-6"><img src="${safe}" alt="" class="w-full rounded-lg" /></figure>`;
-  });
-
-  return expanded
-    .split(/\\n{2,}/)
+  return trimmed
+    .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .map((paragraph) => {
+      const imageOnly = paragraph.match(/^\{\{image:(\d+)\}\}$/i);
+      if (imageOnly) {
+        const src = imageUrls[Number(imageOnly[1]) - 1];
+        if (src) {
+          const safe = escapeHtml(src);
+          return `<figure class="my-6"><img src="${safe}" alt="" class="w-full rounded-lg" /></figure>`;
+        }
+        return "";
+      }
+      return `<p>${escapeHtml(paragraph)}</p>`;
+    })
+    .filter(Boolean)
     .join("");
 }
-
 function EditorInitializer({ html, imageUrls }: { html: string; imageUrls: string[] }) {
   const [editor] = useLexicalComposerContext();
   const initializedRef = useRef(false);
