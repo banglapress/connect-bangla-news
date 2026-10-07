@@ -93,7 +93,7 @@ $$;
 revoke all on function public.has_role(uuid, public.app_role) from public, anon;
 revoke all on function public.is_staff(uuid) from public, anon;
 grant execute on function public.has_role(uuid, public.app_role) to authenticated, service_role;
-grant execute on function public.is_staff(uuid, public.app_role) to authenticated, service_role;
+grant execute on function public.is_staff(uuid) to authenticated, service_role;
 
 drop policy if exists "own roles readable" on public.user_roles;
 create policy "own roles readable"
