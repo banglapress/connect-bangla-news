@@ -704,7 +704,8 @@ values
     true, 5, 25,
     'National news agency. No public official RSS/API found. Discovery-only until a feed is published.',
     'news_agency', 'manual', 'no_feed'
-  )
+  );
+
 -- ---------------------------------------------------------------------------
 -- Demo / sample content
 -- ---------------------------------------------------------------------------
