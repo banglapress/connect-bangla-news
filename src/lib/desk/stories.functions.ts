@@ -5,6 +5,8 @@ import { assertDeskStaff } from "@/lib/desk/staff";
 export type DeskStoryRow = {
   id: string;
   title_hint: string | null;
+  draft_title?: string | null;
+  draft_excerpt?: string | null;
   category_slug: string | null;
   editorial_type?: "news" | "explainer" | "feature" | null;
   article_id: string | null;
@@ -22,14 +24,14 @@ export const listDeskStories = createServerFn({ method: "GET" })
     await assertDeskStaff(context as { supabase: any; userId: string });
     let storiesRes = await context.supabase
       .from("desk_stories")
-      .select("id, title_hint, category_slug, editorial_type, status, article_id, source_count, warning, updated_at, created_at")
+      .select("id, title_hint, draft_title, draft_excerpt, category_slug, editorial_type, status, article_id, source_count, warning, updated_at, created_at")
       .order("updated_at", { ascending: false })
       .limit(80);
 
     if (storiesRes.error && /column|schema cache|editorial_type/i.test(storiesRes.error.message)) {
       storiesRes = await context.supabase
         .from("desk_stories")
-        .select("id, title_hint, category_slug, status, article_id, source_count, warning, updated_at, created_at")
+        .select("id, title_hint, draft_title, draft_excerpt, category_slug, status, article_id, source_count, warning, updated_at, created_at")
         .order("updated_at", { ascending: false })
         .limit(80);
     }
