@@ -147,15 +147,20 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     const url = values.image_urls?.[index];
     if (!url) return;
     setValues((v) => {
+      const isCover = v.image_url === url;
       const next = (v.image_urls ?? []).filter((_, i) => i !== index);
       return {
         ...v,
-        image_urls: next,
-        image_url: v.image_url === url ? next[0] ?? null : v.image_url,
+        image_urls: isCover ? [url, ...next] : next,
+        image_url: v.image_url,
         body: removeImageFromArticleBody(v.body, url),
       };
     });
-    toast.success("ছবিটি গ্যালারি এবং লেখার ভেতর থেকে সরানো হয়েছে");
+    toast.success(
+      values.image_url === url
+        ? "লেখার ভেতর থেকে ছবিটি সরানো হয়েছে; কভার ছবি রাখা হয়েছে"
+        : "ছবিটি গ্যালারি এবং লেখার ভেতর থেকে সরানো হয়েছে",
+    );
   }
 
   async function prepareFacebookAssets(articleId: string) {
@@ -385,7 +390,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
       ) : null}
       <div className="border border-border p-4">
         <label className="mb-2 block text-sm font-medium">ছবি (একাধিক)</label>
-        <p className="mb-3 text-xs text-muted-foreground">প্রথম ছবি কভার। নির্দিষ্ট জায়গায় দেখাতে “লেখায় বসাও” চাপুন।</p>
+        <p className="mb-3 text-xs text-muted-foreground">কভার ছবি আলাদা করে সংরক্ষিত থাকে। নির্দিষ্ট জায়গায় দেখাতে “লেখায় বসাও” চাপুন।</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {(values.image_urls ?? []).map((url, index) => (
             <div key={`${url}-${index}`} className="border border-border p-2">
