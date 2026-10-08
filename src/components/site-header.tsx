@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Search, UserRound, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CATEGORIES, navCategories, type SiteCategory } from "@/lib/categories";
 import { listCategories } from "@/lib/category.functions";
 import { formatBanglaFullDate } from "@/lib/bangla";
 import { useHydrated } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SiteHeader() {
   const fetchCategories = useServerFn(listCategories);
@@ -14,8 +15,29 @@ export function SiteHeader() {
   const items: SiteCategory[] = navCategories(cats.data?.length ? cats.data : CATEGORIES);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
   const hydrated = useHydrated();
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserEmail(data.user?.email || null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email || null);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [hydrated]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +52,17 @@ export function SiteHeader() {
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex items-center justify-between border-b border-border py-2 text-xs text-muted-foreground">
           <span>{hydrated ? formatBanglaFullDate(new Date()) : ""}</span>
-          <Link to="/auth" className="hover:text-primary">সম্পাদকীয় প্রবেশ</Link>
+          {hydrated && userEmail ? (
+            <div className="flex min-w-0 items-center gap-2 text-foreground">
+              <UserRound className="size-3.5 shrink-0 text-primary" />
+              <span className="max-w-[58vw] truncate font-medium" title={userEmail}>
+                লগইন: {userEmail}
+              </span>
+              <Link to="/admin" className="shrink-0 text-primary hover:underline">ড্যাশবোর্ড</Link>
+            </div>
+          ) : (
+            <Link to="/auth" className="hover:text-primary">সম্পাদকীয় প্রবেশ</Link>
+          )
         </div>
         <div className="flex items-center justify-between gap-3 py-5">
           <button type="button" aria-label="মেনু" className="md:hidden" onClick={() => setOpen((v) => !v)}>
