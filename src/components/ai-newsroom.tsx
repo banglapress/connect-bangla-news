@@ -156,7 +156,7 @@ export function AiNewsroom() {
     setRunning(true);
     setMessage(null);
     try {
-      const out = await autoDraftFn({ data: { limit: 4 } });
+      const out = await autoDraftFn({ data: { limit: 1 } });
       const draft = out.summary?.draftCount ?? 0;
       const sourceNeeded = out.summary?.needsSources ?? 0;
       const errors = out.summary?.errors ?? 0;
@@ -288,7 +288,7 @@ export function AiNewsroom() {
                 </div>
               </div>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                RSS → Story Cluster → Related Coverage → Research → AI Draft → Editor Review
+                RSS → Smart Cluster → Priority Queue → Research → One AI Draft → Editor Review
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -404,7 +404,7 @@ export function AiNewsroom() {
                   {!storyRows.some((story) => Boolean(story.article_id)) ? (
                     <div className="p-6 text-center">
                       <p className="text-sm font-medium">এখনো কোনো AI draft ready নেই</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Newsroom source ingest করার পর draft নিজে থেকেই এখানে আসবে।</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Source ingest হবে, একই খবর একবারই cluster হবে, তারপর priority অনুযায়ী final draft তৈরি হবে।</p>
                     </div>
                   ) : null}
                 </div>
