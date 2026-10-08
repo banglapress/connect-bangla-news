@@ -36,6 +36,33 @@ function decodeEscapedLexicalHtml(value: string) {
     .replace(/&amp;/gi, "&");
 }
 
+export function normalizeArticleBodyForStorage(value: string | null | undefined) {
+  let body = decodeEscapedLexicalHtml(String(value || "").trim());
+  if (!body) return "";
+
+  body = body
+    .replace(/<p\b([^>]*)>\s*<span\b[^>]*data-lexical-text=["']true["'][^>]*>([\s\S]*?)<\/span>\s*<\/p>/gi, "<p$1>$2</p>")
+    .replace(/<span\b[^>]*data-lexical-text=["']true["'][^>]*>([\s\S]*?)<\/span>/gi, "$1")
+    .replace(/<p\s*dir=["']ltr["']([^>]*)>/gi, "<p$1>")
+    .replace(/<p>\s*(?:<br\s*\/?>)?\s*<\/p>/gi, "")
+    .replace(/\s*<br\s*\/?>\s*<\/p>/gi, "</p>")
+    .trim();
+
+  return body;
+}
+
+export function removeImageFromArticleBody(value: string | null | undefined, imageUrl: string) {
+  const body = normalizeArticleBodyForStorage(value);
+  if (!body || !imageUrl) return body;
+  const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\
+export function renderArticleBody");
+  return body
+    .replace(new RegExp("<div\\b[^>]*article-image-node[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</div>", "gi"), "")
+    .replace(new RegExp("<figure\\b[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</figure>", "gi"), "")
+    .replace(new RegExp("<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>", "gi"), "")
+    .replace(/<p>\s*(?:<br\s*\/?>)?\s*<\/p>/gi, "")
+    .trim();
+}
 export function renderArticleBody(value: string | null | undefined) {
   const body = decodeEscapedLexicalHtml(String(value || "").trim());
   if (!body) return "";
