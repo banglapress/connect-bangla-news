@@ -47,6 +47,7 @@ export function renderArticleBody(value: string | null | undefined) {
       "br",
       "strong",
       "b",
+      "span",
       "em",
       "i",
       "u",
@@ -66,6 +67,7 @@ export function renderArticleBody(value: string | null | undefined) {
     ],
     allowedAttributes: {
       a: ["href", "target", "rel"],
+      span: ["style", "class", "data-lexical-text"],
       img: ["src", "alt", "title"],
       p: ["style"],
       div: ["style"],
