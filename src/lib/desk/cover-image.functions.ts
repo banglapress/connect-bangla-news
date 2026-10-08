@@ -29,28 +29,35 @@ function cloudinaryFit(url: string | null | undefined, width: number, height: nu
   }
 }
 
-async function uploadBytes(supabase: any, storyId: string, mime: string, bytes: Uint8Array, kind: string) {
+async function uploadBytes(_supabase: any, storyId: string, mime: string, bytes: Uint8Array, kind: string) {
   const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
   const cloud = String(process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
   const preset = String(process.env.CLOUDINARY_UPLOAD_PRESET || process.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
-  if (cloud && preset) {
-    const form = new FormData();
-    form.append("file", `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`);
-    form.append("upload_preset", preset);
-    form.append("folder", `news/covers/${kind}`);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form });
-    const json = (await res.json()) as { secure_url?: string; public_id?: string; error?: { message?: string } };
-    if (res.ok && json.secure_url) return { url: json.secure_url, path: json.public_id || null };
+
+  if (!cloud || !preset) {
+    throw new Error("Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET.");
   }
-  const path = `covers/${storyId}-${kind}-${Date.now()}.${ext}`;
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  const blob = new Blob([copy], { type: mime });
-  const uploaded = await supabase.storage.from("news-images").upload(path, blob, { contentType: mime, upsert: true });
-  if (uploaded.error) throw new Error(uploaded.error.message);
-  const { data } = supabase.storage.from("news-images").getPublicUrl(path);
-  if (!data.publicUrl) throw new Error("Cover image URL was not created");
-  return { url: data.publicUrl, path };
+
+  const form = new FormData();
+  form.append("file", `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`);
+  form.append("upload_preset", preset);
+  form.append("folder", `news/covers/${kind}`);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, {
+    method: "POST",
+    body: form,
+  });
+  const json = (await res.json()) as {
+    secure_url?: string;
+    public_id?: string;
+    error?: { message?: string };
+  };
+
+  if (!res.ok || !json.secure_url) {
+    throw new Error(json.error?.message || "Cloudinary-এ cover image save করা যায়নি");
+  }
+
+  return { url: json.secure_url, path: json.public_id || null, ext };
 }
 
 async function loadStoryBundle(supabase: any, id: string) {
