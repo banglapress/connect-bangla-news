@@ -1,4 +1,6 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { signCloudinaryUpload } from "@/lib/cloudinary.functions";
 
 type CloudinaryAsset = {
   secure_url?: string;
@@ -120,8 +122,8 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
   const [busy, setBusy] = useState<"gallery" | "upload" | null>(null);
   const [error, setError] = useState("");
 
+  const signUpload = useServerFn(signCloudinaryUpload);
   const cloudName = cloudinaryEnv("VITE_CLOUDINARY_CLOUD_NAME");
-  const uploadPreset = cloudinaryEnv("VITE_CLOUDINARY_UPLOAD_PRESET");
   const apiKey = cloudinaryEnv("VITE_CLOUDINARY_API_KEY");
 
   const selectAsset = useCallback((asset?: CloudinaryAsset | null) => {
@@ -182,8 +184,8 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
 
   const openUpload = useCallback(async () => {
     setError("");
-    if (!cloudName || !uploadPreset) {
-      setError("Cloudinary cloud name ও unsigned upload preset সেট করা হয়নি");
+    if (!cloudName || !apiKey) {
+      setError("Cloudinary cloud name ও API key সেট করা হয়নি");
       return;
     }
 
@@ -197,7 +199,21 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
 
       const options: Record<string, unknown> = {
         cloudName,
-        uploadPreset,
+        apiKey,
+        uploadSignature: async (callback: (signature: string) => void, params: Record<string, unknown>) => {
+          try {
+            const signed = await signUpload({
+              data: {
+                timestamp: Number(params.timestamp),
+                source: String(params.source || "uw"),
+                folder: String(params.folder || "news"),
+              },
+            });
+            callback(signed.signature);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Cloudinary upload signature তৈরি করা যায়নি");
+          }
+        },
         multiple: false,
         maxFiles: 1,
         sources: ["local"],
@@ -231,7 +247,7 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
       setBusy(null);
       setError(err instanceof Error ? err.message : "Cloudinary Upload Widget খোলা যায়নি");
     }
-  }, [cloudName, selectAsset, uploadPreset]);
+  }, [apiKey, cloudName, selectAsset, signUpload]);
 
   useImperativeHandle(ref, () => ({ openGallery, openUpload }), [openGallery, openUpload]);
 
