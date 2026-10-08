@@ -18,8 +18,27 @@ function plainTextToHtml(value: string) {
     .join("");
 }
 
+function decodeEscapedLexicalHtml(value: string) {
+  // Older/buggy editor saves can contain HTML that was escaped once before
+  // being stored (e.g. &lt;p dir=&quot;ltr&quot;&gt;...&lt;/p&gt;). Decode only
+  // when the value clearly looks like escaped Lexical markup so normal text
+  // such as "a &lt; b" is left untouched.
+  if (!/&lt;\/?(?:p|span|div|figure|strong|em|u|s|code|blockquote|ul|ol|li|img)\b/i.test(value)) {
+    return value;
+  }
+
+  return value
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;/gi, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&amp;/gi, "&");
+}
+
 export function renderArticleBody(value: string | null | undefined) {
-  const body = String(value || "").trim();
+  const body = decodeEscapedLexicalHtml(String(value || "").trim());
+  if (!body) return "";
   if (!body) return "";
   if (!/<[a-z][^>]*>/i.test(body)) return plainTextToHtml(body);
 
