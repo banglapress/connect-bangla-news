@@ -13,7 +13,7 @@ type CloudinaryWidgetResult = {
   info?: CloudinaryAsset;
 };
 
-type CloudinaryMediaLibraryResult = {
+type CloudinaryMediaLibraryResult = CloudinaryAsset[] | {
   assets?: CloudinaryAsset[];
 };
 
@@ -164,7 +164,12 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
 
       const handlers = {
         insertHandler: (data: CloudinaryMediaLibraryResult) => {
-          const asset = Array.isArray(data?.assets) ? data.assets.find((item) => item?.resource_type !== "video") : null;
+          const assets = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.assets)
+              ? data.assets
+              : [];
+          const asset = assets.find((item) => item?.resource_type === "image" || !item?.resource_type) || null;
           selectAsset(asset);
           setBusy(null);
         },
