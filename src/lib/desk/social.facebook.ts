@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
+import { articlePath } from "@/lib/ids";
 import { publicImageUrl } from "@/lib/image";
 import { parseCardTemplate } from "@/lib/desk/card/template";
 import { facebookPublicStatus, maskPageId, probeFacebookPage, publishPageLink, readFacebookSecrets } from "@/lib/desk/facebook";
-import { articlePublicUrl } from "@/lib/desk/social.functions";
 
 async function loadStoryBundle(supabase: any, id: string) {
   const storyRes = await supabase.from("desk_stories").select("*").eq("id", id).single();
@@ -17,20 +17,6 @@ async function loadStoryBundle(supabase: any, id: string) {
     article = articleRes.data;
   }
   return { story, article };
-}
-
-function publishImageOf(story: any, article: any) {
-  return (
-    publicImageUrl(story.cover_social_url) ||
-    story.cover_social_url ||
-    publicImageUrl(story.cover_image_url) ||
-    story.cover_image_url ||
-    publicImageUrl(story.card_image_url) ||
-    story.card_image_url ||
-    publicImageUrl(article?.image_url) ||
-    article?.image_url ||
-    null
-  );
 }
 
 export const getCardTemplateSettings = createServerFn({ method: "GET" })
@@ -90,6 +76,17 @@ export const saveCardTemplateSettings = createServerFn({ method: "POST" })
     return { ok: true, template: value };
   });
 
+function deskArticleUrl(article: { public_id?: string | null; slug?: string | null }) {
+  const origin = String(
+    process.env.SITE_URL ||
+      process.env.PUBLIC_SITE_URL ||
+      process.env.VITE_SITE_URL ||
+      process.env.VITE_PUBLIC_SITE_URL ||
+      "https://www.theconnectbd.com",
+  ).replace(/\/$/, "");
+  return origin + articlePath(article);
+}
+
 export const publishDeskToFacebook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid(), confirm: z.literal(true) }).parse(data))
@@ -99,7 +96,7 @@ export const publishDeskToFacebook = createServerFn({ method: "POST" })
     if (!facebookPublicStatus().configured) {
       throw new Error("Facebook is not configured. Set META_ACCESS_TOKEN and META_PAGE_ID.");
     }
-    const articleUrl = articlePublicUrl(article);
+    const articleUrl = deskArticleUrl(article);
     if (!/^https:\/\//i.test(articleUrl)) {
       throw new Error("The article URL must be an absolute HTTPS URL");
     }
