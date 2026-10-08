@@ -16,12 +16,11 @@ Optional:
 - `META_PAGE_NAME`
 - `SITE_URL` — public origin used in captions, e.g. `https://www.theconnectbd.com`
 - `GEMINI_API_KEY` — used only for caption wording; a heuristic caption is used if missing
-- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_UPLOAD_PRESET` — server-side Cloudinary uploads for AI covers and Facebook cards
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — server-side authenticated Cloudinary uploads for AI covers and Facebook cards
 
 Browser-side Cloudinary variables:
 - `VITE_CLOUDINARY_CLOUD_NAME` — Cloudinary cloud name
-- `VITE_CLOUDINARY_API_KEY` — Cloudinary API key (public value; optional for the Media Library)
-- `VITE_CLOUDINARY_UPLOAD_PRESET` — unsigned upload preset used by the editor Upload Widget
+- `VITE_CLOUDINARY_API_KEY` — Cloudinary API key used by the Media Library and signed Upload Widget
 - Aliases accepted: `FACEBOOK_PAGE_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`
 
 ## Meta setup
@@ -58,7 +57,7 @@ The Connect generates and saves its 4:5 photo card for editorial review, but the
 
 New article and cover images are stored on Cloudinary. In the editor, **Cloudinary Gallery** opens Cloudinary Media Library so an existing asset can be selected without uploading it again. **নতুন ছবি আপলোড করুন** opens Cloudinary Upload Widget for a device upload. The article editor also exposes the same gallery from the rich-text toolbar for inserting images at the current cursor position.
 
-The Media Library callback returns the selected asset URL, so selecting an existing asset does not create another upload. The Upload Widget uses an unsigned upload preset for direct browser uploads. Configure that preset with the formats and size limits you want for newsroom use.
+The Media Library callback returns the selected asset URL, so selecting an existing asset does not create another upload. The editor Upload Widget now uses a server-generated Cloudinary signature, so it does not depend on an unsigned upload preset. The API secret remains server-only.
 
 ## Workflow
 
