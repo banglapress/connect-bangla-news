@@ -62,7 +62,7 @@ export function SiteHeader() {
             </div>
           ) : (
             <Link to="/auth" className="hover:text-primary">সম্পাদকীয় প্রবেশ</Link>
-          )
+          )}
         </div>
         <div className="flex items-center justify-between gap-3 py-5">
           <button type="button" aria-label="মেনু" className="md:hidden" onClick={() => setOpen((v) => !v)}>
