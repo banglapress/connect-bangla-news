@@ -14,15 +14,11 @@ function plainTextToHtml(value: string) {
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
+    .map((paragraph) => \`<p>\${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>\`)
     .join("");
 }
 
 function decodeEscapedLexicalHtml(value: string) {
-  // Older/buggy editor saves can contain HTML that was escaped once before
-  // being stored (e.g. &lt;p dir=&quot;ltr&quot;&gt;...&lt;/p&gt;). Decode only
-  // when the value clearly looks like escaped Lexical markup so normal text
-  // such as "a &lt; b" is left untouched.
   if (!/&lt;\/?(?:p|span|div|figure|strong|em|u|s|code|blockquote|ul|ol|li|img)\b/i.test(value)) {
     return value;
   }
@@ -54,8 +50,7 @@ export function normalizeArticleBodyForStorage(value: string | null | undefined)
 export function removeImageFromArticleBody(value: string | null | undefined, imageUrl: string) {
   const body = normalizeArticleBodyForStorage(value);
   if (!body || !imageUrl) return body;
-  const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\
-export function renderArticleBody");
+  const escapedUrl = imageUrl.replace(/[.*+?^\${}()|[\]\\]/g, "\\$&");
   return body
     .replace(new RegExp("<div\\b[^>]*article-image-node[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</div>", "gi"), "")
     .replace(new RegExp("<figure\\b[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</figure>", "gi"), "")
@@ -63,6 +58,7 @@ export function renderArticleBody");
     .replace(/<p>\s*(?:<br\s*\/?>)?\s*<\/p>/gi, "")
     .trim();
 }
+
 export function renderArticleBody(value: string | null | undefined) {
   const body = normalizeArticleBodyForStorage(value);
   if (!body) return "";
