@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { articlePath, makePublicId } from "@/lib/ids";
 import { publicImageUrl } from "@/lib/image";
-import { facebookPublicStatus, publishPagePhoto } from "@/lib/desk/facebook";
+import { facebookPublicStatus, publishPageLink } from "@/lib/desk/facebook";
 
 const articleInput = z.object({
   title: z.string().min(1, "শিরোনাম দিন"),
@@ -218,13 +218,16 @@ export const publishArticleToFacebook = createServerFn({ method: "POST" })
       return { ok: true, alreadyPublished: true, postId: story.facebook_post_id };
     }
 
-    const imageUrl = facebookArticleImage(story, article);
-    if (!imageUrl) throw new Error("Facebook-এ photo post করতে আগে একটি cover/featured image দিন");
+    const articleUrl = facebookArticleUrl(article);
+    if (!/^https:\/\//i.test(articleUrl)) {
+      throw new Error("Facebook-এ পোস্ট করার জন্য site URL সেট করতে হবে");
+    }
     const caption = String(story?.social_caption || "").trim() || facebookCaption(article);
     if (!caption) throw new Error("Facebook caption তৈরি করা যায়নি");
 
     try {
-      const posted = await publishPagePhoto({ imageUrl, caption });
+      // Publish as a link post so Facebook's title/preview image open the article.
+      const posted = await publishPageLink({ url: articleUrl, message: caption });
       if (story?.id) {
         await context.supabase.from("desk_stories").update({
           facebook_status: "published",
@@ -238,7 +241,7 @@ export const publishArticleToFacebook = createServerFn({ method: "POST" })
           story_id: story.id,
           stage: "facebook",
           status: "ok",
-          payload: { postId: posted.postId, photoId: posted.photoId, trigger: "article_publish" },
+          payload: { postId: posted.postId, link: articleUrl, trigger: "article_publish" },
           finished_at: new Date().toISOString(),
         });
       }
