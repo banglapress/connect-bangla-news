@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getArticle } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
@@ -6,6 +6,7 @@ import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { publicImageUrl } from "@/lib/image";
 import { articlePath } from "@/lib/ids";
+import { CATEGORIES } from "@/lib/categories";
 import { renderArticleBody } from "@/lib/article-html";
 
 const articleQuery = (id: string) =>
@@ -15,6 +16,11 @@ const articleQuery = (id: string) =>
   });
 
 export const Route = createFileRoute("/$id")({
+  beforeLoad: ({ params }) => {
+    if (CATEGORIES.some((category) => category.slug === params.id)) {
+      throw redirect({ to: "/category/$slug", params: { slug: params.id } });
+    }
+  },
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(articleQuery(params.id));
     if (!data.article) throw notFound();
