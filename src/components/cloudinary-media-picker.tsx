@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
 type CloudinaryAsset = {
   secure_url?: string;
@@ -119,7 +119,6 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
 ) {
   const [busy, setBusy] = useState<"gallery" | "upload" | null>(null);
   const [error, setError] = useState("");
-  const uploadWidgetRef = useRef<{ open?: () => void } | null>(null);
 
   const cloudName = cloudinaryEnv("VITE_CLOUDINARY_CLOUD_NAME");
   const uploadPreset = cloudinaryEnv("VITE_CLOUDINARY_UPLOAD_PRESET");
@@ -226,7 +225,6 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
         cloudinary.openUploadWidget(options, callback);
       } else {
         const widget = cloudinary.createUploadWidget!(options, callback);
-        uploadWidgetRef.current = widget;
         widget?.open?.();
       }
     } catch (err) {
