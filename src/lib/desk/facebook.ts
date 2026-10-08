@@ -166,3 +166,41 @@ export async function publishPagePhoto(input: { imageUrl: string; caption: strin
     postId: String(json.post_id || json.id || ""),
   };
 }
+export async function publishPageLink(input: { url: string; message: string }) {
+  const page = await resolvePageAccessToken();
+  const link = String(input.url || "").trim();
+  if (!/^https:\/\//i.test(link)) {
+    throw new Error("Facebook link post requires an absolute HTTPS article URL");
+  }
+
+  const body = new URLSearchParams();
+  body.set("message", input.message);
+  body.set("link", link);
+  body.set("published", "true");
+  body.set("access_token", page.token);
+
+  const res = await fetch(
+    `https://graph.facebook.com/${META_GRAPH_VERSION}/${encodeURIComponent(page.pageId)}/feed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    },
+  );
+
+  const raw = await res.text();
+  let json: any = null;
+  try {
+    json = raw ? JSON.parse(raw) : null;
+  } catch {
+    json = { raw };
+  }
+
+  if (!res.ok || json?.error) {
+    throw new Error(graphErrorMessage(json, raw.slice(0, 240) || `Facebook link publish failed (${res.status})`));
+  }
+
+  return {
+    postId: String(json?.id || ""),
+  };
+}
