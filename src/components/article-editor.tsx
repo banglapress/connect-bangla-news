@@ -16,6 +16,7 @@ import CloudinaryMediaPicker, { type CloudinaryMediaPickerHandle } from "@/compo
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
 import { DraftCoverImage } from "@/components/draft-cover-image";
 import RichArticleEditor from "@/components/rich-article-editor";
+import { normalizeArticleBodyForStorage, removeImageFromArticleBody } from "@/lib/article-html";
 import {
   generateDeskCaption,
   getSocialDeskState,
@@ -142,6 +143,21 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     toast.success("Cloudinary-এর ছবিটি কভার হিসেবে বেছে নেওয়া হয়েছে");
   }
 
+  function removeImage(index: number) {
+    const url = values.image_urls?.[index];
+    if (!url) return;
+    setValues((v) => {
+      const next = (v.image_urls ?? []).filter((_, i) => i !== index);
+      return {
+        ...v,
+        image_urls: next,
+        image_url: v.image_url === url ? next[0] ?? null : v.image_url,
+        body: removeImageFromArticleBody(v.body, url),
+      };
+    });
+    toast.success("ছবিটি গ্যালারি এবং লেখার ভেতর থেকে সরানো হয়েছে");
+  }
+
   async function prepareFacebookAssets(articleId: string) {
     const state = await getFacebookState({ data: { id: articleId } });
     if (!state.storyId) throw new Error("এই article-এর সঙ্গে AI Desk story পাওয়া যায়নি");
@@ -200,7 +216,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
         title: values.title.trim(),
         slug: values.slug.trim() || slugifyBangla(values.title),
         excerpt: values.excerpt,
-        body: values.body,
+        body: normalizeArticleBodyForStorage(values.body),
         category_slug: values.category_slug,
         tags: values.tags.split(",").map((t) => t.trim()).filter(Boolean),
         image_url: values.image_url || image_urls[0] || null,
@@ -377,10 +393,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
               <div className="flex flex-wrap gap-2 text-xs">
                 <button type="button" className="text-primary hover:underline" onClick={() => insertImage(index)}>লেখায় বসাও</button>
                 <button type="button" className="text-primary hover:underline" onClick={() => set("image_url", url)}>কভার</button>
-                <button type="button" className="text-destructive hover:underline" onClick={() => setValues((v) => {
-                  const next = (v.image_urls ?? []).filter((_, i) => i !== index);
-                  return { ...v, image_urls: next, image_url: v.image_url === url ? next[0] ?? null : v.image_url };
-                })}>সরান</button>
+                <button type="button" className="text-destructive hover:underline" onClick={() => removeImage(index)}>সরান</button>
               </div>
             </div>
           ))}
