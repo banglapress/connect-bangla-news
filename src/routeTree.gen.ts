@@ -109,6 +109,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/category/$slug': typeof CategorySlugRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/$id': typeof IdRoute
   '/_authenticated/admin/new': typeof AuthenticatedAdminNewRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -134,6 +135,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/category/$slug'
     | '/news/$slug'
+    | '/$id'
     | '/admin/new'
     | '/admin/users'
     | '/admin'
@@ -146,6 +148,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/category/$slug'
     | '/news/$slug'
+    | '/$id'
     | '/_authenticated/admin/new'
     | '/_authenticated/admin/users'
     | '/_authenticated/admin/'
