@@ -14,9 +14,14 @@ Server-only. Never put these in client code or the database.
 Optional:
 
 - `META_PAGE_NAME`
-- `SITE_URL` — public origin used in captions, e.g. `https://www.theconnect.news`
+- `SITE_URL` — public origin used in captions, e.g. `https://www.theconnectbd.com`
 - `GEMINI_API_KEY` — used only for caption wording; a heuristic caption is used if missing
-- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_UPLOAD_PRESET` — reused from article image uploads
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_UPLOAD_PRESET` — server-side Cloudinary uploads for AI covers and Facebook cards
+
+Browser-side Cloudinary variables:
+- `VITE_CLOUDINARY_CLOUD_NAME` — Cloudinary cloud name
+- `VITE_CLOUDINARY_API_KEY` — Cloudinary API key (public value; optional for the Media Library)
+- `VITE_CLOUDINARY_UPLOAD_PRESET` — unsigned upload preset used by the editor Upload Widget
 - Aliases accepted: `FACEBOOK_PAGE_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`
 
 ## Meta setup
@@ -37,7 +42,7 @@ This app publishes only to our own Page. It does not request `publish_actions` a
 12. Open Admin → Desk Settings → Facebook Page and click Recheck connection
 13. Status should become `ready`
 
-Publish uses Graph API `v21.0` `POST /{page-id}/photos` with `url` + `caption` and a Page access token.
+Publish uses Graph API `v26.0` and the Page feed endpoint for a clickable article link post.
 
 ## Database
 
@@ -48,6 +53,12 @@ Existing article rows are not modified.
 ## Facebook post type
 
 The Connect generates and saves its 4:5 photo card for editorial review, but the final Facebook post is a **link post**. This is intentional: Meta's Page photo endpoint creates a photo post, while the Page feed endpoint supports a `link` parameter for a clickable article preview.
+
+## Cloudinary image workflow
+
+New article and cover images are stored on Cloudinary. In the editor, **Cloudinary Gallery** opens Cloudinary Media Library so an existing asset can be selected without uploading it again. **নতুন ছবি আপলোড করুন** opens Cloudinary Upload Widget for a device upload. The article editor also exposes the same gallery from the rich-text toolbar for inserting images at the current cursor position.
+
+The Media Library callback returns the selected asset URL, so selecting an existing asset does not create another upload. The Upload Widget uses an unsigned upload preset for direct browser uploads. Configure that preset with the formats and size limits you want for newsroom use.
 
 ## Workflow
 
