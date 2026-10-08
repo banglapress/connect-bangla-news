@@ -39,7 +39,6 @@ function decodeEscapedLexicalHtml(value: string) {
 export function renderArticleBody(value: string | null | undefined) {
   const body = decodeEscapedLexicalHtml(String(value || "").trim());
   if (!body) return "";
-  if (!body) return "";
   if (!/<[a-z][^>]*>/i.test(body)) return plainTextToHtml(body);
 
   return sanitizeHtml(body, {
