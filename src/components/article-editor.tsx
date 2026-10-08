@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,7 +12,7 @@ import {
 import { listCategories } from "@/lib/category.functions";
 import { listWriters } from "@/lib/writer.functions";
 import { slugifyBangla } from "@/lib/bangla";
-import { uploadNewsImage } from "@/lib/upload-image";
+import CloudinaryMediaPicker, { type CloudinaryMediaPickerHandle } from "@/components/cloudinary-media-picker";
 import { CATEGORIES, type SiteCategory } from "@/lib/categories";
 import { DraftCoverImage } from "@/components/draft-cover-image";
 import RichArticleEditor from "@/components/rich-article-editor";
@@ -72,7 +72,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     youtube_url: initial.youtube_url ?? "",
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const inlineImagePickerRef = useRef<CloudinaryMediaPickerHandle>(null);
   const [insertImageUrl, setInsertImageUrl] = useState<string | null>(null);
   const [postToFacebook, setPostToFacebook] = useState(true);
   const [fbPreview, setFbPreview] = useState<string | null>(null);
@@ -117,27 +117,29 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
-  async function handleUpload(file: File) {
-    setUploading(true);
-    try {
-      const url = await uploadNewsImage(file);
-      setValues((v) => {
-        const image_urls = [...(v.image_urls ?? []), url];
-        return { ...v, image_urls, image_url: v.image_url || url };
-      });
-      toast.success("ছবি যুক্ত হয়েছে");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "ছবি আপলোড করা যায়নি");
-    } finally {
-      setUploading(false);
-    }
-  }
-
   function insertImage(index: number) {
     const url = values.image_urls?.[index];
     if (!url) return;
     setInsertImageUrl(url);
     toast.success("ছবিটি লেখার বর্তমান অবস্থানে বসানো হবে");
+  }
+
+  function addCloudinaryArticleImage(url: string) {
+    setValues((v) => {
+      const image_urls = [url, ...(v.image_urls ?? []).filter((item) => item !== url)];
+      return { ...v, image_urls, image_url: v.image_url || url };
+    });
+    setInsertImageUrl(url);
+    toast.success("Cloudinary-এর ছবিটি লেখার বর্তমান অবস্থানে বসানো হয়েছে");
+  }
+
+  function selectCloudinaryCover(url: string) {
+    setValues((v) => ({
+      ...v,
+      image_url: url,
+      image_urls: [url, ...(v.image_urls ?? []).filter((item) => item !== url)],
+    }));
+    toast.success("Cloudinary-এর ছবিটি কভার হিসেবে বেছে নেওয়া হয়েছে");
   }
 
   async function prepareFacebookAssets(articleId: string) {
@@ -327,6 +329,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
           insertImageUrl={insertImageUrl}
           insertImageCaption={values.image_caption ?? ""}
           onImageInserted={() => setInsertImageUrl(null)}
+          onRequestImage={() => inlineImagePickerRef.current?.openGallery()}
           onChange={(html) => set("body", html)}
         />
       </div>
@@ -382,12 +385,23 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
             </div>
           ))}
         </div>
-        <input type="file" accept="image/*" disabled={uploading} className="mt-3 text-sm" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void handleUpload(file);
-          e.target.value = "";
-        }} />
-        {uploading && <p className="mt-2 text-sm text-muted-foreground">আপলোড হচ্ছে…</p>}
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="border border-dashed border-border bg-secondary/20 p-3">
+            <CloudinaryMediaPicker
+              onSelect={addCloudinaryArticleImage}
+              label="লেখার ছবি"
+              helperText="Gallery থেকে পুরোনো ছবি বেছে নিন। না থাকলে এখান থেকেই ডিভাইস থেকে নতুন ছবি Cloudinary-তে আপলোড করুন।"
+              ref={inlineImagePickerRef}
+            />
+          </div>
+          <div className="border border-dashed border-border bg-secondary/20 p-3">
+            <CloudinaryMediaPicker
+              onSelect={selectCloudinaryCover}
+              label="কভার ছবি"
+              helperText="Cloudinary Gallery থেকে কভার বাছাই করলে নতুন করে upload হবে না।"
+            />
+          </div>
+        </div>
         <input className={`${inputClass} mt-3`} value={values.image_caption ?? ""} onChange={(e) => set("image_caption", e.target.value)} placeholder="কভার ছবির ক্যাপশন" />
       </div>
       {values.id ? (
