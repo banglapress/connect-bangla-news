@@ -18,6 +18,8 @@ import {
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
   UNDO_COMMAND,
+  $isNodeSelection,
+  $generateHtmlFromNodes,
 } from "lexical";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { DecoratorNode, type NodeKey } from "lexical";
@@ -232,6 +234,14 @@ function InsertImagePlugin({
   return null;
 }
 
+function normalizeEditorHtml(html: string) {
+  return html
+    .replace(/<p\b([^>]*)>\s*<span\b[^>]*data-lexical-text=["']true["'][^>]*>([\s\S]*?)<\/span>\s*<\/p>/gi, "<p$1>$2</p>")
+    .replace(/<span\b[^>]*data-lexical-text=["']true["'][^>]*>([\s\S]*?)<\/span>/gi, "$1")
+    .replace(/<p>\s*(?:<br\s*\/?>)?\s*<\/p>/gi, "")
+    .trim();
+}
+
 function EditorToolbar({ onRequestImage }: { onRequestImage?: () => void }) {
   const [editor] = useLexicalComposerContext();
   const [canUndo, setCanUndo] = useState(false);
@@ -280,6 +290,18 @@ function EditorToolbar({ onRequestImage }: { onRequestImage?: () => void }) {
       <ToolbarButton label="U" title="Underline" onClick={() => format("underline")} />
       <ToolbarButton label="S" title="Strikethrough" onClick={() => format("strikethrough")} />
       <ToolbarButton label="</>" title="Inline code" onClick={() => format("code")} />
+      <ToolbarButton
+        label="ছবি মুছুন"
+        title="লেখায় নির্বাচিত ছবিটি মুছুন"
+        onClick={() => {
+          editor.update(() => {
+            const selection = $getSelection();
+            if (!$isNodeSelection(selection)) return;
+            const imageNode = selection.getNodes().find((node) => node instanceof ArticleImageNode);
+            imageNode?.remove();
+          });
+        }}
+      />
       {onRequestImage ? (
         <ToolbarButton label="ছবি" title="Cloudinary Gallery থেকে ছবি বসান" onClick={onRequestImage} />
       ) : null}
@@ -345,8 +367,7 @@ export default function RichArticleEditor({
       <OnChangePlugin
         onChange={(editorState, editor) => {
           editorState.read(() => {
-            const root = editor.getRootElement();
-            onChange(root?.innerHTML || "");
+            onChange(normalizeEditorHtml($generateHtmlFromNodes(editor)));
           });
         }}
       />
