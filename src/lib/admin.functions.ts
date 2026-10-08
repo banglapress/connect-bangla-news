@@ -62,7 +62,29 @@ export const listAllArticles = createServerFn({ method: "GET" })
       .order("updated_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
-    return data ?? [];
+
+    const rows = data ?? [];
+    const ids = rows.map((row) => row.id);
+    if (!ids.length) return rows;
+
+    const desk = await context.supabase
+      .from("desk_stories")
+      .select("id, article_id, status, article_status")
+      .in("article_id", ids);
+
+    const byArticle = new Map(
+      (desk.data ?? []).map((row: { id: string; article_id: string | null; status: string; article_status?: string | null }) => [
+        row.article_id,
+        row,
+      ]),
+    );
+
+    return rows.map((row) => ({
+      ...row,
+      ai_story_id: byArticle.get(row.id)?.id ?? null,
+      ai_status: byArticle.get(row.id)?.status ?? null,
+      ai_article_status: byArticle.get(row.id)?.article_status ?? null,
+    }));
   });
 
 export const getArticleForEdit = createServerFn({ method: "GET" })
