@@ -9,6 +9,7 @@ on:
       - ".github/workflows/desk-auto-draft.yml"
   schedule:
     # Every 30 minutes. One AI worker keeps the free-tier pilot gentle on quota.
+    - cron: "7,37 * * * *"
 
 jobs:
   ingest:
