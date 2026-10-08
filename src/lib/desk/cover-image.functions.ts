@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { uploadCloudinaryImage } from "@/lib/cloudinary.server";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { publicImageUrl } from "@/lib/image";
 import { COVER_PROMPT_VERSION, buildSafeCoverPrompt, generateGeminiCoverPrompt } from "@/lib/desk/ai/cover-image";
@@ -29,35 +30,14 @@ function cloudinaryFit(url: string | null | undefined, width: number, height: nu
   }
 }
 
-async function uploadBytes(_supabase: any, storyId: string, mime: string, bytes: Uint8Array, kind: string) {
+async function uploadBytes(_supabase: any, _storyId: string, mime: string, bytes: Uint8Array, kind: string) {
   const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
-  const cloud = String(process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
-  const preset = String(process.env.CLOUDINARY_UPLOAD_PRESET || process.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
-
-  if (!cloud || !preset) {
-    throw new Error("Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET.");
-  }
-
-  const form = new FormData();
-  form.append("file", `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`);
-  form.append("upload_preset", preset);
-  form.append("folder", `news/covers/${kind}`);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, {
-    method: "POST",
-    body: form,
+  const uploaded = await uploadCloudinaryImage({
+    data: bytes,
+    mime,
+    folder: `news/covers/${kind}`,
   });
-  const json = (await res.json()) as {
-    secure_url?: string;
-    public_id?: string;
-    error?: { message?: string };
-  };
-
-  if (!res.ok || !json.secure_url) {
-    throw new Error(json.error?.message || "Cloudinary-এ cover image save করা যায়নি");
-  }
-
-  return { url: json.secure_url, path: json.public_id || null, ext };
+  return { ...uploaded, path: uploaded.publicId, ext };
 }
 
 async function loadStoryBundle(supabase: any, id: string) {
