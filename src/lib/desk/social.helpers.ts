@@ -7,28 +7,29 @@ export function bytesFromDataUrl(dataUrl: string) {
   return { mime: match[1], bytes };
 }
 
-export async function uploadCardImage(supabase: any, storyId: string, dataUrl: string) {
-  const { mime, bytes } = bytesFromDataUrl(dataUrl);
-  const ext = mime.includes("png") ? "png" : "jpg";
+export async function uploadCardImage(_supabase: any, _storyId: string, dataUrl: string) {
+  bytesFromDataUrl(dataUrl);
   const cloud = String(process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
   const preset = String(process.env.CLOUDINARY_UPLOAD_PRESET || process.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
-  if (cloud && preset) {
-    const form = new FormData();
-    form.append("file", dataUrl);
-    form.append("upload_preset", preset);
-    form.append("folder", "news/cards");
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form });
-    const json = (await res.json()) as { secure_url?: string; error?: { message?: string } };
-    if (res.ok && json.secure_url) return json.secure_url;
+
+  if (!cloud || !preset) {
+    throw new Error("Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET.");
   }
-  const path = `cards/${storyId}-${Date.now()}.${ext}`;
-  const blob = new Blob([bytes], { type: mime });
-  const uploaded = await supabase.storage.from("news-images").upload(path, blob, {
-    contentType: mime,
-    upsert: true,
+
+  const form = new FormData();
+  form.append("file", dataUrl);
+  form.append("upload_preset", preset);
+  form.append("folder", "news/cards");
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, {
+    method: "POST",
+    body: form,
   });
-  if (uploaded.error) throw new Error(uploaded.error.message);
-  const { data } = supabase.storage.from("news-images").getPublicUrl(path);
-  if (!data.publicUrl) throw new Error("Card image URL was not created");
-  return data.publicUrl;
+  const json = (await res.json()) as { secure_url?: string; error?: { message?: string } };
+
+  if (!res.ok || !json.secure_url) {
+    throw new Error(json.error?.message || "Cloudinary-এ Facebook card save করা যায়নি");
+  }
+
+  return json.secure_url;
 }
