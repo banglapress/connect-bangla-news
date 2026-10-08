@@ -6,7 +6,7 @@ import { ArticleCard } from "@/components/article-card";
 import { ArticleMedia } from "@/components/article-media";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime, writerPath } from "@/lib/bangla";
-import { renderArticleBody } from "@/lib/body-render";
+import { renderArticleBody } from "@/lib/article-html";
 
 const categoryQuery = (slug: string) =>
   queryOptions({
@@ -78,7 +78,7 @@ export const Route = createFileRoute("/$section/")({
                   <p className="mt-1 text-xs text-muted-foreground">{article.image_caption}</p>
                 ) : null}
               </div>
-              <div className="article-body mt-6">{renderArticleBody(article.body, images)}</div>
+              <div className="article-body mt-6" dangerouslySetInnerHTML={{ __html: renderArticleBody(article.body) }} />
             </article>
             <aside>
               <h2 className="section-rule pb-1 font-serif text-lg font-bold">সম্পর্কিত খবর</h2>
