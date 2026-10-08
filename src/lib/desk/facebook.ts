@@ -1,4 +1,4 @@
-export const META_GRAPH_VERSION = "v21.0";
+export const META_GRAPH_VERSION = "v26.0";
 
 export const PAGE_PUBLISH_PERMISSIONS = [
   "pages_manage_posts",
