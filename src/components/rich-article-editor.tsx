@@ -19,6 +19,8 @@ import {
   REDO_COMMAND,
   UNDO_COMMAND,
   $isNodeSelection,
+  $setSelection,
+  type BaseSelection,
 } from "lexical";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { DecoratorNode, type NodeKey } from "lexical";
@@ -216,13 +218,35 @@ function InsertImagePlugin({
   onImageInserted?: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
+  const lastRangeSelectionRef = useRef<BaseSelection | null>(null);
+
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          lastRangeSelectionRef.current = selection.clone();
+        }
+      });
+    });
+  }, [editor]);
 
   useEffect(() => {
     if (!imageUrl) return;
 
-    editor.focus();
     editor.update(() => {
-      const selection = $getSelection();
+      const savedSelection = lastRangeSelectionRef.current;
+      if (savedSelection) {
+        $setSelection(savedSelection.clone());
+      }
+
+      let selection = $getSelection();
+      if (!$isRangeSelection(selection)) {
+        const root = $getRoot();
+        root.selectEnd();
+        selection = $getSelection();
+      }
+
       if ($isRangeSelection(selection)) {
         selection.insertNodes([$createArticleImageNode(imageUrl, imageCaption || "")]);
       }
@@ -364,8 +388,8 @@ export default function RichArticleEditor({
 
       <HistoryPlugin />
       <OnChangePlugin
-        onChange={(editorState, editor) => {
-          editorState.read(() => {
+        onChange={(_editorState, editor) => {
+          editor.read(() => {
             onChange(normalizeEditorHtml($generateHtmlFromNodes(editor)));
           });
         }}
