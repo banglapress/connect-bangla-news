@@ -6,9 +6,11 @@ import { toSourcePackets } from "@/lib/desk/research.functions";
 import { slugifyBangla } from "@/lib/bangla";
 import { makePublicId } from "@/lib/ids";
 
-const DEFAULT_AUTO_LIMIT = 4;
-const MAX_AUTO_LIMIT = 8;
-const AUTO_CONCURRENCY = 2;
+const DEFAULT_AUTO_LIMIT = 1;
+const MAX_AUTO_LIMIT = 2;
+const AUTO_CONCURRENCY = 1;
+const MAX_DAILY_AI_DRAFTS = 20;
+const CANDIDATE_POOL_SIZE = 48;
 const MIN_SOURCES_FOR_ARTICLE = 1;
 const MIN_RELEVANCE = 0.5;
 const AUTO_LOCK_MINUTES = 30;
@@ -20,12 +22,44 @@ function envNumber(name: string, fallback: number, min: number, max: number) {
   return Number.isFinite(raw) ? Math.min(max, Math.max(min, Math.round(raw))) : fallback;
 }
 
+const HIGH_VALUE_TERMS = [
+  "সরকার", "প্রধানমন্ত্রী", "মন্ত্রিসভা", "মন্ত্রী", "সংসদ", "নির্বাচন", "ভোট",
+  "আদালত", "রায়", "গ্রেপ্তার", "নিহত", "মৃত্যু", "দুর্ঘটনা", "আগুন", "বিস্ফোরণ",
+  "হামলা", "যুদ্ধ", "সংঘর্ষ", "সীমান্ত", "ভারত", "পাকিস্তান", "ইরান", "ইসরায়েল",
+  "যুক্তরাষ্ট্র", "ইউক্রেন", "গ্যাস", "বিদ্যুৎ", "জ্বালানি", "তেল", "ডলার", "ব্যাংক",
+  "অর্থনীতি", "মূল্যস্ফীতি", "বাজেট", "কর", "শুল্ক", "রপ্তানি", "আমদানি", "রেমিট্যান্স",
+  "সংকট", "দাম", "বিধিনিষেধ", "কূটনীতি", "চুক্তি", "বিমান", "ট্রেন", "বন্দর", "ঘূর্ণিঝড়",
+  "বন্যা", "ভূমিকম্প", "ডেঙ্গু", "হাম", "স্বাস্থ্য
+"]; 
+
 function candidateScore(story: any) {
   const sourceCount = Number(story.source_count || 0);
   const ageHours = Math.max(0, (Date.now() - new Date(story.created_at || Date.now()).getTime()) / 3600000);
-  const freshness = Math.max(0, 24 - ageHours);
+  const freshness = Math.max(0, 30 - ageHours);
   const warnings = story.warning ? 0 : 1;
-  return sourceCount * 100 + freshness + warnings;
+  const title = String(story.title_hint || "").toLowerCase();
+  const importance = HIGH_VALUE_TERMS.reduce((score, term) => score + (title.includes(term) ? 8 : 0), 0);
+  return sourceCount * 140 + importance + freshness + warnings;
+}
+
+function bangladeshDayStartIso() {
+  // Bangladesh is UTC+06:00 with no DST. Use the Bangladesh calendar day for the newsroom cap.
+  const now = new Date();
+  const local = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  local.setUTCHours(0, 0, 0, 0);
+  return new Date(local.getTime() - 6 * 60 * 60 * 1000).toISOString();
+}
+
+async function dailyDraftCount(supabase: any) {
+  const start = bangladeshDayStartIso();
+  const res = await supabase
+    .from("desk_stories")
+    .select("id", { count: "exact", head: true })
+    .not("article_id", "is", null)
+    .gte("article_generated_at", start);
+  if (res.error && /column|schema cache/i.test(res.error.message)) return 0;
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
 }
 
 function retryDelayMinutes(attempt: number) {
@@ -177,6 +211,7 @@ async function autoArticle(supabase: any, storyId: string, userId?: string | nul
     utilization: story.source_utilization || [],
     depth,
   });
+  const generatedAt = new Date().toISOString();
   const payload = {
     title: drafted.title,
     slug: drafted.slug || slugifyBangla(drafted.title),
@@ -226,6 +261,9 @@ async function autoArticle(supabase: any, storyId: string, userId?: string | nul
     draft_body: drafted.body,
     status: "draft",
     article_status: checked.article_status || "ready",
+    article_model: drafted.model || null,
+    article_generated_at: generatedAt,
+    article_word_count: drafted.word_count || null,
     article_depth: depth,
     warning,
     last_error: null,
@@ -245,10 +283,12 @@ async function claimNextAutoStory(supabase: any) {
     .is("article_id", null)
     .is("auto_processing_started_at", null)
     .order("updated_at", { ascending: false })
-    .limit(24);
+    .limit(CANDIDATE_POOL_SIZE);
   if (listed.error) throw new Error(listed.error.message);
 
   const now = Date.now();
+  const todayDrafts = await dailyDraftCount(supabase);
+  if (todayDrafts >= MAX_DAILY_AI_DRAFTS) return null;
   const candidates = (listed.data ?? [])
     .filter((story: any) => {
       const attempts = Number(story.auto_attempts || 0);
@@ -366,6 +406,10 @@ async function processStory(supabase: any, story: any, userId?: string | null) {
   }
 }
 
+function summaryDraftCount(rows: Array<Record<string, unknown>>) {
+  return rows.filter((row) => row.step === "draft").length;
+}
+
 export async function runAutoDraftPipeline(
   supabase: any,
   opts?: { userId?: string | null; limit?: number; ingest?: boolean },
@@ -382,6 +426,7 @@ export async function runAutoDraftPipeline(
       : envNumber("DESK_AUTO_LIMIT", DEFAULT_AUTO_LIMIT, 1, MAX_AUTO_LIMIT);
 
   const processed: Array<Record<string, unknown>> = [];
+  const dailyBefore = await dailyDraftCount(supabase);
   let processedCount = 0;
 
   async function worker() {
@@ -406,6 +451,9 @@ export async function runAutoDraftPipeline(
     needsResearchReview: processed.filter((row) => row.step === "needs_research_review").length,
     errors: processed.filter((row) => row.step === "error").length,
     retrying: processed.filter((row: any) => row.retrying).length,
+    dailyDraftsBefore: dailyBefore,
+    dailyDraftsAfter: Math.min(MAX_DAILY_AI_DRAFTS, dailyBefore + summaryDraftCount(processed)),
+    dailyDraftLimit: MAX_DAILY_AI_DRAFTS,
   };
 
   await supabase.from("desk_jobs").insert({
