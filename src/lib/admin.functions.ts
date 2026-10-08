@@ -114,7 +114,7 @@ function facebookSiteOrigin() {
       process.env.PUBLIC_SITE_URL ||
       process.env.VITE_SITE_URL ||
       process.env.VITE_PUBLIC_SITE_URL ||
-      "",
+      "https://www.theconnectbd.com",
   ).replace(/\/$/, "");
 }
 
