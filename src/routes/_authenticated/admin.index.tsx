@@ -20,7 +20,7 @@ function AdminDashboard() {
   const fetchAccess = useServerFn(getMyAccess);
   const fetchArticles = useServerFn(listAllArticles);
   const removeArticle = useServerFn(deleteArticle);
-  const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
+  const [filter, setFilter] = useState<"all" | "published" | "draft" | "ai">("all");
   const access = useQuery({ queryKey: ["access"], queryFn: () => fetchAccess() });
   const articles = useQuery({ queryKey: ["admin-articles"], queryFn: () => fetchArticles(), enabled: access.data?.isStaff === true });
 
@@ -62,7 +62,12 @@ function AdminDashboard() {
     );
   }
 
-  const rows = (articles.data ?? []).filter((a) => filter === "all" || a.status === filter);
+  const articleRows = articles.data ?? [];
+  const rows = articleRows.filter((a) => {
+    if (filter === "ai") return Boolean(a.ai_story_id);
+    return filter === "all" || a.status === filter;
+  });
+  const aiCount = articleRows.filter((a) => Boolean(a.ai_story_id)).length;
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="section-rule flex flex-wrap items-center justify-between gap-3 pb-2">
@@ -91,7 +96,7 @@ function AdminDashboard() {
             <div key={a.id} className="flex flex-wrap items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{a.title}</p>
-                <p className="text-xs text-muted-foreground">{categoryName(a.category_slug)} · {a.status === "published" ? `প্রকাশিত ${formatBanglaDate(a.published_at)}` : "ড্রাফট"}</p>
+                <p className="text-xs text-muted-foreground">{a.ai_story_id ? "🤖 AI নিউজ · " : ""}{categoryName(a.category_slug)} · {a.status === "published" ? `প্রকাশিত ${formatBanglaDate(a.published_at)}` : "ড্রাফট"}</p>
               </div>
               <Link to="/admin/$id/edit" params={{ id: a.id }} className="border border-border px-3 py-1 text-sm hover:bg-secondary">সম্পাদনা</Link>
               <button onClick={() => handleDelete(a.id, a.title)} className="px-2 text-sm text-destructive hover:underline">মুছুন</button>
