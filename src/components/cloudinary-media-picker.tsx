@@ -199,7 +199,7 @@ const CloudinaryMediaPicker = forwardRef<CloudinaryMediaPickerHandle, Props>(fun
 
       const options: Record<string, unknown> = {
         cloudName,
-        apiKey,
+        api_key: apiKey,
         uploadSignature: async (callback: (signature: string) => void, params: Record<string, unknown>) => {
           try {
             const signed = await signUpload({
