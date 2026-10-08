@@ -14,7 +14,7 @@ function plainTextToHtml(value: string) {
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => \`<p>\${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>\`)
+    .map((paragraph) => "<p>" + escapeHtml(paragraph).replace(/\n/g, "<br />") + "</p>")
     .join("");
 }
 
@@ -50,7 +50,7 @@ export function normalizeArticleBodyForStorage(value: string | null | undefined)
 export function removeImageFromArticleBody(value: string | null | undefined, imageUrl: string) {
   const body = normalizeArticleBodyForStorage(value);
   if (!body || !imageUrl) return body;
-  const escapedUrl = imageUrl.replace(/[.*+?^\${}()|[\]\\]/g, "\\$&");
+  const escapedUrl = imageUrl.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
   return body
     .replace(new RegExp("<div\\b[^>]*article-image-node[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</div>", "gi"), "")
     .replace(new RegExp("<figure\\b[^>]*>[\\s\\S]*?<img\\b[^>]*src=[\\\"']" + escapedUrl + "[\\\"'][^>]*>[\\s\\S]*?</figure>", "gi"), "")
@@ -66,27 +66,9 @@ export function renderArticleBody(value: string | null | undefined) {
 
   return sanitizeHtml(body, {
     allowedTags: [
-      "p",
-      "br",
-      "strong",
-      "b",
-      "span",
-      "em",
-      "i",
-      "u",
-      "s",
-      "del",
-      "code",
-      "pre",
-      "blockquote",
-      "ul",
-      "ol",
-      "li",
-      "a",
-      "figure",
-      "figcaption",
-      "img",
-      "div",
+      "p", "br", "strong", "b", "span", "em", "i", "u", "s", "del",
+      "code", "pre", "blockquote", "ul", "ol", "li", "a", "figure",
+      "figcaption", "img", "div",
     ],
     allowedAttributes: {
       a: ["href", "target", "rel"],
@@ -98,12 +80,8 @@ export function renderArticleBody(value: string | null | undefined) {
       figcaption: ["class"],
     },
     allowedStyles: {
-      p: {
-        "text-align": [/^(left|center|right|justify)$/],
-      },
-      div: {
-        "text-align": [/^(left|center|right|justify)$/],
-      },
+      p: { "text-align": [/^(left|center|right|justify)$/] },
+      div: { "text-align": [/^(left|center|right|justify)$/] },
     },
     allowedSchemes: ["http", "https"],
     allowProtocolRelative: false,
