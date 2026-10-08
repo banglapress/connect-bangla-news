@@ -400,10 +400,20 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
                 Approve না করা পর্যন্ত Facebook-এ কোনো পোস্ট যাবে না।
               </p>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {facebookStateQuery.data?.configured ? "Facebook configured" : "Facebook not configured"}
+            <span className={
+              facebookStateQuery.data?.configured
+                ? "text-xs font-medium text-emerald-700"
+                : "text-xs font-medium text-destructive"
+            }>
+              {facebookStateQuery.data?.configured ? "Facebook connected" : "Facebook credentials needed"}
             </span>
           </div>
+
+          {!facebookStateQuery.data?.configured ? (
+            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              Facebook-এ পোস্ট করতে Vercel Production-এ <code>META_ACCESS_TOKEN</code> (Page access token) এবং <code>META_PAGE_ID</code> (Page ID) সেট করুন।
+            </p>
+          ) : null}
 
           {values.status !== "published" ? (
             <label className="mt-3 flex items-center gap-2 text-sm">
@@ -462,6 +472,7 @@ export function ArticleEditor({ initial }: { initial: EditorValues }) {
                     type="button"
                     disabled={saving || !fbPrepared || !fbApproved || !facebookStateQuery.data?.configured}
                     onClick={() => void publishFacebookNow()}
+                    title={!facebookStateQuery.data?.configured ? "আগে Vercel-এ META_ACCESS_TOKEN এবং META_PAGE_ID সেট করুন" : undefined}
                     className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
                   >
                     Approve করে Facebook-এ পোস্ট করুন
