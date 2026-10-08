@@ -4,7 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertDeskStaff } from "@/lib/desk/staff";
 import { publicImageUrl } from "@/lib/image";
 import { parseCardTemplate } from "@/lib/desk/card/template";
-import { facebookPublicStatus, maskPageId, probeFacebookPage, publishPagePhoto, readFacebookSecrets } from "@/lib/desk/facebook";
+import { facebookPublicStatus, maskPageId, probeFacebookPage, publishPageLink, readFacebookSecrets } from "@/lib/desk/facebook";
+import { articlePublicUrl } from "@/lib/desk/social.functions";
 
 async function loadStoryBundle(supabase: any, id: string) {
   const storyRes = await supabase.from("desk_stories").select("*").eq("id", id).single();
@@ -98,16 +99,18 @@ export const publishDeskToFacebook = createServerFn({ method: "POST" })
     if (!facebookPublicStatus().configured) {
       throw new Error("Facebook is not configured. Set META_ACCESS_TOKEN and META_PAGE_ID.");
     }
-    const publishImage = publishImageOf(story, article);
-    if (!publishImage) throw new Error("Select an article cover image or save a photo card first");
+    const articleUrl = articlePublicUrl(article);
+    if (!/^https:\/\//i.test(articleUrl)) {
+      throw new Error("The article URL must be an absolute HTTPS URL");
+    }
     if (!String(story.social_caption || "").trim()) throw new Error("Generate or write a caption first");
     if (story.facebook_status === "published" && story.facebook_post_id) {
       throw new Error(`Already published (${story.facebook_post_id}). Will not create a duplicate post.`);
     }
     try {
-      const posted = await publishPagePhoto({
-        imageUrl: publishImage,
-        caption: story.social_caption,
+      const posted = await publishPageLink({
+        url: articleUrl,
+        message: story.social_caption,
       });
       const page = await probeFacebookPage().catch(() => null);
       await context.supabase.from("desk_stories").update({
@@ -122,7 +125,7 @@ export const publishDeskToFacebook = createServerFn({ method: "POST" })
         story_id: data.id,
         stage: "facebook",
         status: "ok",
-        payload: { postId: posted.postId, photoId: posted.photoId },
+        payload: { postId: posted.postId, link: articleUrl },
         finished_at: new Date().toISOString(),
       });
       return { ok: true, postId: posted.postId };
