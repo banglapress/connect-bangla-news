@@ -373,24 +373,40 @@ export function AiNewsroom() {
 
               <section className="rounded-xl border border-border bg-background">
                 <div className="border-b border-border p-4">
-                  <h2 className="font-serif text-lg font-bold">Latest Queue</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">সর্বশেষ story-গুলোর কাজের অবস্থা।</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-serif text-lg font-bold">Editor Inbox</h2>
+                      <p className="mt-1 text-xs text-muted-foreground">AI যে খবরগুলো লিখে ফেলেছে, সেগুলোই আগে দেখুন।</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">{counts.draft + counts.review} ready</span>
+                  </div>
                 </div>
                 <div className="divide-y divide-border">
-                  {storyRows.slice(0, 7).map((story) => (
-                    <a href={`/admin/desk/${story.id}`} key={story.id} className="block p-3 hover:bg-secondary/40">
+                  {storyRows.filter((story) => Boolean(story.article_id)).slice(0, 7).map((story) => (
+                    <div key={story.id} className="p-3 hover:bg-secondary/40">
                       <div className="flex items-start gap-3">
                         <StatusBadge status={story.status} />
                         <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm font-medium">{story.title_hint || "শিরোনামহীন story"}</p>
+                          <p className="line-clamp-2 text-sm font-medium">{story.draft_title || story.title_hint || "শিরোনামহীন story"}</p>
                           <p className="mt-1 text-[11px] text-muted-foreground">{story.source_count} source · {formatBanglaDateTime(story.updated_at)}</p>
                         </div>
-                        <ExternalLink className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       </div>
-                      {story.warning ? <p className="mt-2 text-[11px] text-amber-700">{story.warning}</p> : null}
-                    </a>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <a href={`/admin/${story.article_id}/edit`} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium hover:bg-secondary">
+                          <FileText className="h-3.5 w-3.5" /> Edit & Publish
+                        </a>
+                        <a href={`/admin/desk/${story.id}`} className="inline-flex items-center gap-1 px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground">
+                          <ExternalLink className="h-3.5 w-3.5" /> Story details
+                        </a>
+                      </div>
+                    </div>
                   ))}
-                  {!storyRows.length ? <p className="p-4 text-sm text-muted-foreground">এখনো কোনো story নেই। Run Newsroom Now চাপুন।</p> : null}
+                  {!storyRows.some((story) => Boolean(story.article_id)) ? (
+                    <div className="p-6 text-center">
+                      <p className="text-sm font-medium">এখনো কোনো AI draft ready নেই</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Newsroom source ingest করার পর draft নিজে থেকেই এখানে আসবে।</p>
+                    </div>
+                  ) : null}
                 </div>
               </section>
             </div>
