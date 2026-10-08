@@ -64,7 +64,7 @@ export function renderArticleBody");
     .trim();
 }
 export function renderArticleBody(value: string | null | undefined) {
-  const body = decodeEscapedLexicalHtml(String(value || "").trim());
+  const body = normalizeArticleBodyForStorage(value);
   if (!body) return "";
   if (!/<[a-z][^>]*>/i.test(body)) return plainTextToHtml(body);
 
