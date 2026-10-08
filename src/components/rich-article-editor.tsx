@@ -232,7 +232,7 @@ function InsertImagePlugin({
   return null;
 }
 
-function EditorToolbar() {
+function EditorToolbar({ onRequestImage }: { onRequestImage?: () => void }) {
   const [editor] = useLexicalComposerContext();
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -280,6 +280,9 @@ function EditorToolbar() {
       <ToolbarButton label="U" title="Underline" onClick={() => format("underline")} />
       <ToolbarButton label="S" title="Strikethrough" onClick={() => format("strikethrough")} />
       <ToolbarButton label="</>" title="Inline code" onClick={() => format("code")} />
+      {onRequestImage ? (
+        <ToolbarButton label="ছবি" title="Cloudinary Gallery থেকে ছবি বসান" onClick={onRequestImage} />
+      ) : null}
       <span className="mx-1 h-6 w-px bg-border" />
       <ToolbarButton label="≡" title="বামে align" onClick={() => align("left")} />
       <ToolbarButton label="☰" title="মাঝে align" onClick={() => align("center")} />
@@ -296,6 +299,7 @@ export default function RichArticleEditor({
   insertImageUrl,
   insertImageCaption,
   onImageInserted,
+  onRequestImage,
 }: {
   onChange: (html: string) => void;
   initialHtml?: string;
@@ -303,6 +307,7 @@ export default function RichArticleEditor({
   insertImageUrl?: string | null;
   insertImageCaption?: string;
   onImageInserted?: () => void;
+  onRequestImage?: () => void;
 }) {
   const initialConfig = {
     namespace: "TheConnectArticleEditor",
@@ -317,7 +322,7 @@ export default function RichArticleEditor({
       <InsertImagePlugin imageUrl={insertImageUrl} imageCaption={insertImageCaption} onImageInserted={onImageInserted} />
 
       <div className="overflow-hidden rounded-xl border border-border bg-background">
-        <EditorToolbar />
+        <EditorToolbar onRequestImage={onRequestImage} />
         <div className="relative">
           <RichTextPlugin
             contentEditable={
