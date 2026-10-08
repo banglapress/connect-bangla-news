@@ -45,6 +45,10 @@ Run `supabase/sql/008_social_publishing.sql` (or the matching migration) once in
 
 Existing article rows are not modified.
 
+## Facebook post type
+
+The Connect generates and saves its 4:5 photo card for editorial review, but the final Facebook post is a **link post**. This is intentional: Meta's Page photo endpoint creates a photo post, while the Page feed endpoint supports a `link` parameter for a clickable article preview. citeturn804910search1turn804910search0
+
 ## Workflow
 
 1. Open the desk story
