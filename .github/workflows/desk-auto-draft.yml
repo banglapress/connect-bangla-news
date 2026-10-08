@@ -2,6 +2,11 @@ name: The Connect AI Desk Auto Draft
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/routes/api/desk-auto-draft.ts"
+      - ".github/workflows/desk-auto-draft.yml"
   schedule:
     # Every 15 minutes (offset to reduce top-of-the-hour queueing).
     - cron: "7,22,37,52 * * * *"
