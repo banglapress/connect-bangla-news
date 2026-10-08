@@ -59,6 +59,70 @@ function cutoffFor(source: { last_success_at?: string | null }, lookbackHours: n
   return new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
 }
 
+
+
+const TITLE_STOP_WORDS = new Set([
+  "এই", "ওই", "এক", "একটি", "এ", "ও", "এর", "এবং", "করে", "করেছে", "করেন", "করতে",
+  "হবে", "হয়েছে", "হলো", "হতে", "নিয়ে", "নতুন", "আর", "আরও", "থেকে", "জন্য", "সঙ্গে",
+  "বলে", "বলেছেন", "জানিয়েছে", "জানান", "দিয়ে", "দিতে", "আজ", "কাল", "গত", "এখন",
+  "বাংলাদেশ", "ঢাকা", "দেশে", "দেশের",
+]);
+
+function meaningfulTitleTokens(title: string) {
+  const folded = title
+    .toLowerCase()
+    .replace(/[া-ৄেৈোৌ্ঁ-ঃ]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return new Set(
+    folded
+      .split(" ")
+      .filter((token) => token.length >= 2 && !TITLE_STOP_WORDS.has(token)),
+  );
+}
+
+function titleSimilarity(a: string, b: string) {
+  const left = meaningfulTitleTokens(a);
+  const right = meaningfulTitleTokens(b);
+  if (left.size < 2 || right.size < 2) return 0;
+  let intersection = 0;
+  for (const token of left) if (right.has(token)) intersection += 1;
+  const union = new Set([...left, ...right]).size;
+  return intersection >= 2 ? intersection / union : 0;
+}
+
+async function findRelatedStory(supabase: any, title: string, categorySlug: string | null, clusterKey: string) {
+  const exact = await supabase
+    .from("desk_stories")
+    .select("id, source_count, title_hint, status, article_id")
+    .eq("cluster_key", clusterKey)
+    .maybeSingle();
+  if (exact.data) return exact.data;
+
+  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  let query = supabase
+    .from("desk_stories")
+    .select("id, source_count, title_hint, status, article_id, category_slug, updated_at")
+    .gte("updated_at", since)
+    .order("updated_at", { ascending: false })
+    .limit(80);
+  if (categorySlug) query = query.eq("category_slug", categorySlug);
+  const candidates = await query;
+  if (candidates.error) return null;
+
+  let best: any = null;
+  let bestScore = 0;
+  for (const candidate of candidates.data ?? []) {
+    const score = titleSimilarity(title, String(candidate.title_hint || ""));
+    if (score >= 0.55 && score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 function clusterWarning(existingTitle: string | null, incomingTitle: string, key: string) {
   if (key.length < 18) return "Possible weak title cluster";
   if (existingTitle && clusterKeyFromTitle(existingTitle) !== key) return "Title mismatch. Review cluster.";
@@ -106,25 +170,25 @@ async function ingestSource(supabase: any, source: any, settings: { lookbackHour
         continue;
       }
       const key = clusterKeyFromTitle(item.title);
-      const existing = await supabase.from("desk_stories").select("id, source_count, title_hint").eq("cluster_key", key).maybeSingle();
-      let story = existing.data;
-      if (!story) {
+      const story = await findRelatedStory(supabase, item.title, source.category_slug, key);
+      let existingStory = story;
+      if (!existingStory) {
         const created = await supabase.from("desk_stories").insert({
           cluster_key: key, title_hint: item.title, category_slug: source.category_slug,
           status: "new", source_count: 1, warning: "One source",
         }).select("id, source_count, title_hint").single();
         if (created.error) throw new Error(created.error.message);
-        story = created.data;
+        existingStory = created.data;
         result.inserted += 1;
       } else {
-        const nextCount = (story.source_count ?? 1) + 1;
+        const nextCount = (existingStory.source_count ?? 1) + 1;
         await supabase.from("desk_stories").update({
-          source_count: nextCount, updated_at: nowIso, warning: clusterWarning(story.title_hint, item.title, key),
-        }).eq("id", story.id);
+          source_count: nextCount, updated_at: nowIso, warning: clusterWarning(existingStory.title_hint, item.title, key),
+        }).eq("id", existingStory.id);
         result.clustered += 1;
       }
       const row = {
-        story_id: story.id, source_id: source.id, url: canonical, canonical_url: canonical,
+        story_id: existingStory.id, source_id: source.id, url: canonical, canonical_url: canonical,
         title: item.title, excerpt: item.excerpt, raw_text: item.excerpt,
         published_at: item.publishedAt, image_url: item.imageUrl, fetched_at: nowIso, origin: "rss", trusted: false,
       };
