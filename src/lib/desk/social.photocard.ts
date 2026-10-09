@@ -8,19 +8,29 @@ import { uploadCardImage } from "@/lib/desk/social.helpers";
 export const publishHeadlinePhotocard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
-    z.object({
-      imageDataUrl: z
-        .string()
-        .max(4_200_000, "ফটোকার্ডটি বেশি বড়। আবার পোস্ট করার চেষ্টা করুন।")
-        .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, "ফটোকার্ডের ছবি সঠিক ফরম্যাটে তৈরি হয়নি।"),
-      caption: z.string().trim().min(1, "Facebook ক্যাপশন লিখুন।").max(5_000),
-    }).parse(data),
+    z
+      .object({
+        imageDataUrl: z
+          .string()
+          .max(
+            4_200_000,
+            "ফটোকার্ডটি বেশি বড়। আবার পোস্ট করার চেষ্টা করুন।",
+          )
+          .regex(
+            /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/,
+            "ফটোকার্ডের ছবি সঠিক ফরম্যাটে তৈরি হয়নি।",
+          ),
+        caption: z.string().trim().min(1, "Facebook ক্যাপশন লিখুন।").max(5_000),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
-    await assertDeskStaff(context as { supabase: any; userId: string });
+    await assertDeskStaff(context as Parameters<typeof assertDeskStaff>[0]);
 
     if (!facebookPublicStatus().configured) {
-      throw new Error("Facebook সংযোগ পাওয়া যায়নি। Vercel-এর META_ACCESS_TOKEN এবং META_PAGE_ID পরীক্ষা করুন।");
+      throw new Error(
+        "Facebook সংযোগ পাওয়া যায়নি। Vercel-এর META_ACCESS_TOKEN এবং META_PAGE_ID পরীক্ষা করুন।",
+      );
     }
 
     // Reuse the existing newsroom's server-side Cloudinary image upload.
