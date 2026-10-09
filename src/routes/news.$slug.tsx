@@ -6,7 +6,6 @@ import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { publicImageUrl, responsiveImageSources } from "@/lib/image";
 import { renderArticleBody } from "@/lib/article-html";
-import { responsiveImageSources } from "@/lib/image";
 
 const articleQuery = (slug: string) =>
   queryOptions({
