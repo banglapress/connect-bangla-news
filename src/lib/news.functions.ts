@@ -141,7 +141,8 @@ export const getCategoryPage = createServerFn({ method: "GET" })
 export const getArticle = createServerFn({ method: "GET" })
   .inputValidator((data) => z.object({ slug: z.string().min(1) }).parse(data))
   .handler(async ({ data }) => {
-    const key = decodeURIComponent(data.slug || "").trim();
+    // findArticle normalizes/decodes the key itself; avoid decoding it twice here.
+    const key = String(data.slug || "").trim();
     return withPublicCache(`article:${key}`, async () => {
       const supabase = publicClient();
       const article = await findArticle(supabase, key);
