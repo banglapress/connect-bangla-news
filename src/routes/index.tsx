@@ -7,6 +7,8 @@ import { CATEGORIES } from "@/lib/categories";
 const homeQuery = queryOptions({
   queryKey: ["home"],
   queryFn: () => getHomeData(),
+  staleTime: 30_000,
+  gcTime: 120_000,
 });
 
 export const Route = createFileRoute("/")({
