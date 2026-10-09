@@ -182,6 +182,14 @@ export function NewsInfographicPhotocard() {
     const previousFrameStyle = frame.style.cssText;
 
     try {
+      if (document.fonts?.load) {
+        await Promise.all([
+          document.fonts.load("400 18px 'Hind Siliguri'"),
+          document.fonts.load("500 25px 'Hind Siliguri'"),
+          document.fonts.load("700 38px 'Hind Siliguri'"),
+          document.fonts.load("800 52px 'Hind Siliguri'"),
+        ]);
+      }
       if (document.fonts?.ready) await document.fonts.ready;
       const renderer = await getHtml2Canvas();
       frame.style.width = "1080px";
@@ -250,13 +258,20 @@ export function NewsInfographicPhotocard() {
     }
   }
 
-  const headlineLength = draft?.headline.length || 0;
-  const headlineFontSize = headlineLength > 90 ? 39 : headlineLength > 65 ? 44 : headlineLength > 45 ? 50 : 58;
+  const displayHeadline = draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে";
+  const headlineLength = displayHeadline.length;
+  const headlineFontSize =
+    headlineLength > 72 ? 34 : headlineLength > 55 ? 38 : headlineLength > 38 ? 44 : 52;
+  const headlineCharsPerLine =
+    headlineFontSize <= 38 ? 43 : headlineFontSize <= 44 ? 35 : 29;
   const headlineLineEstimate = Math.max(
     1,
-    Math.ceil(headlineLength / (headlineFontSize <= 44 ? 36 : headlineFontSize <= 50 ? 30 : 25)),
+    Math.min(3, Math.ceil(headlineLength / headlineCharsPerLine)),
   );
-  const summaryTop = Math.min(446, 285 + headlineLineEstimate * headlineFontSize * 1.18 + 10);
+  const summaryTop = Math.min(
+    438,
+    285 + headlineLineEstimate * headlineFontSize * 1.42 + 12,
+  );
   const cardStyle: CSSProperties = {
     width: 1080,
     height: 1350,
@@ -371,7 +386,7 @@ export function NewsInfographicPhotocard() {
                 </label>
                 <label className={labelClass}>
                   ইনফোগ্রাফিক্স হেডলাইন
-                  <textarea value={draft.headline} onChange={(event) => updateDraft({ headline: event.target.value })} rows={3} maxLength={180} className={fieldClass} />
+                  <textarea value={draft.headline} onChange={(event) => updateDraft({ headline: event.target.value })} rows={3} maxLength={90} className={fieldClass} />
                 </label>
                 <label className={labelClass}>
                   সংক্ষিপ্ত পরিচিতি
@@ -437,32 +452,32 @@ export function NewsInfographicPhotocard() {
                 </div>
               </div>
 
-              <div style={{ position: "absolute", left: 68, top: 246, zIndex: 2, color: "#E95319", fontSize: 23, lineHeight: 1.15, fontWeight: 700, letterSpacing: 0.4 }}>
+              <div style={{ position: "absolute", left: 68, top: 246, zIndex: 2, color: "#E95319", fontSize: 23, lineHeight: 1.4, fontWeight: 700, letterSpacing: 0.4 }}>
                 {draft?.kicker || "সংক্ষেপে"}
               </div>
 
-              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.18, letterSpacing: -0.7, overflowWrap: "anywhere" }}>
+              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.42, letterSpacing: 0, maxHeight: headlineFontSize * 1.42 * 3, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                 {draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে"}
               </h1>
 
-              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 25, fontWeight: 500, lineHeight: 1.35, maxHeight: 68, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 25, fontWeight: 500, lineHeight: 1.48, maxHeight: 80, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                 {draft?.summary || "নিউজের বিস্তারিত দিন, AI মূল তথ্য ও সংক্ষিপ্ত ব্যাখ্যা সাজিয়ে দেবে।"}
               </p>
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact.length > 76 ? 32 : draft.featured_fact.length > 48 ? 38 : draft.featured_fact.length > 30 ? 44 : 54, fontWeight: 800, lineHeight: 1.16, maxHeight: draft.featured_fact_detail ? 104 : 154, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact.length > 76 ? 28 : draft.featured_fact.length > 48 ? 32 : draft.featured_fact.length > 30 ? 38 : 46, fontWeight: 800, lineHeight: 1.4, maxHeight: draft.featured_fact_detail ? 90 : 148, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                       {draft.featured_fact}
                     </div>
                     {draft.featured_fact_detail ? (
-                      <div style={{ marginTop: 8, color: "#D4D8D2", fontSize: 22, lineHeight: 1.22, maxHeight: 54, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                      <div style={{ marginTop: 8, color: "#D4D8D2", fontSize: 20, lineHeight: 1.4, maxHeight: 56, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                         {draft.featured_fact_detail}
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <div style={{ color: "#555A56", fontSize: 28, lineHeight: 1.3, fontWeight: 600, overflowWrap: "anywhere" }}>
+                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.4, fontWeight: 600, overflowWrap: "anywhere" }}>
                     গুরুত্বপূর্ণ তথ্য এখানে তুলে ধরা হবে।
                   </div>
                 )}
@@ -474,21 +489,21 @@ export function NewsInfographicPhotocard() {
                   <span style={{ color: "#96988F", fontSize: 15, fontWeight: 700 }}>০১ — ০৩</span>
                 </div>
                 {(draft?.points || emptyDraft.points).map((point, index) => (
-                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 98, padding: "10px 0 9px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
+                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 85, padding: "6px 0 5px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
                     <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: index === 0 ? "#FF5A1A" : "#E9E7DF", color: index === 0 ? "#FFFFFF" : "#3C403B", fontSize: 17, fontWeight: 800 }}>
                       0{index + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 22, lineHeight: 1.2, fontWeight: 800, color: "#222620", maxHeight: 28, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 5, fontSize: 18, lineHeight: 1.25, color: "#686D66", maxHeight: 45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 21, lineHeight: 1.4, fontWeight: 800, color: "#222620", maxHeight: 32, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 4, fontSize: 17, lineHeight: 1.4, color: "#686D66", maxHeight: 48, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "17px 23px", boxSizing: "border-box" }}>
-                <div style={{ color: "#E95319", fontSize: 16, fontWeight: 800, letterSpacing: 1.2 }}>মূল বার্তা</div>
-                <div style={{ marginTop: 5, color: "#30342F", fontSize: 23, lineHeight: 1.25, fontWeight: 700, overflowWrap: "anywhere" }}>
+                <div style={{ color: "#E95319", fontSize: 16, lineHeight: 1.4, fontWeight: 800, letterSpacing: 1.2 }}>মূল বার্তা</div>
+                <div style={{ marginTop: 4, color: "#30342F", fontSize: 22, lineHeight: 1.4, fontWeight: 700, maxHeight: 62, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                   {draft?.takeaway || "সংবাদটি থেকে সবচেয়ে গুরুত্বপূর্ণ বার্তা এখানে আসবে।"}
                 </div>
               </div>
