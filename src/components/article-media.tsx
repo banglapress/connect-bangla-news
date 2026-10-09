@@ -7,9 +7,10 @@ type Props = {
   imageUrl?: string | null;
   title: string;
   className?: string;
+  priority?: boolean;
 };
 
-export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, className = "" }: Props) {
+export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, className = "", priority = false }: Props) {
   if (contentType === "video") {
     const embed = youtubeEmbedUrl(youtubeUrl);
     if (embed) {
@@ -18,6 +19,7 @@ export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, classNa
           <iframe
             src={embed}
             title={title}
+            loading={priority ? "eager" : "lazy"}
             className="h-full w-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -28,5 +30,16 @@ export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, classNa
   }
   const image = publicImageUrl(imageUrl);
   if (!image) return null;
-  return <img src={image} alt={title} className={`w-full object-cover ${className}`} />;
+  return (
+    <img
+      src={image}
+      alt={title}
+      width={1200}
+      height={675}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
+      decoding="async"
+      className={`w-full object-cover ${className}`}
+    />
+  );
 }
