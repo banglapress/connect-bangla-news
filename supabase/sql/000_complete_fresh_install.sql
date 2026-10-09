@@ -139,7 +139,7 @@ begin
   -- New accounts never receive editorial roles automatically.
   return new;
 end;
-$;
+$$;
 
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 
@@ -172,7 +172,7 @@ as $$
     WHERE user_id = auth.uid()
       AND role::text IN ('admin', 'editor')
   );
-$;
+$$;
 
 revoke all on function public.ensure_first_admin() from public, anon;
 grant execute on function public.ensure_first_admin() to authenticated, service_role;
