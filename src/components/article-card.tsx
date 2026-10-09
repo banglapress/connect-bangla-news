@@ -22,7 +22,7 @@ export function ArticleCard({ article, variant = "wide", priority = false }: Pro
     return (
       <article>
         <a href={href} className="group block">
-          <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority className="mb-4 aspect-[16/9]" />
+          <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority sizes="(max-width: 768px) 100vw, 800px" className="mb-4 aspect-[16/9]" />
           <span className="text-xs font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
           <h2 className="mt-2 font-serif text-3xl font-bold leading-tight group-hover:text-primary md:text-4xl">{article.title}</h2>
           {article.excerpt ? <p className="mt-3 text-[0.95rem] leading-relaxed text-muted-foreground">{article.excerpt}</p> : null}
@@ -37,7 +37,7 @@ export function ArticleCard({ article, variant = "wide", priority = false }: Pro
   return (
     <article className="border-b border-border pb-4">
       <a href={href} className="group block">
-        <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority={priority} className="mb-3 aspect-[16/10]" />
+        <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority={priority} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px" className="mb-3 aspect-[16/10]" />
         <span className="text-[0.68rem] font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
         <h3 className="mt-1 font-serif text-lg font-semibold leading-snug group-hover:text-primary">{article.title}</h3>
         {article.excerpt ? <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{article.excerpt}</p> : null}
