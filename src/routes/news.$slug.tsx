@@ -11,6 +11,8 @@ const articleQuery = (slug: string) =>
   queryOptions({
     queryKey: ["article", slug],
     queryFn: () => getArticle({ data: { slug } }),
+    staleTime: 30_000,
+    gcTime: 120_000,
   });
 
 export const Route = createFileRoute("/news/$slug")({
@@ -107,7 +109,12 @@ function ArticlePage() {
               <img
                 src={image}
                 alt={article.image_caption ?? article.title}
-                className="w-full object-cover"
+                width={1200}
+                height={675}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                className="aspect-video w-full object-cover"
               />
               {article.image_caption ? (
                 <figcaption className="mt-1 text-xs text-muted-foreground">
