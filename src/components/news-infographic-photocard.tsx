@@ -250,7 +250,13 @@ export function NewsInfographicPhotocard() {
     }
   }
 
-  const longHeadline = (draft?.headline.length || 0) > 70;
+  const headlineLength = draft?.headline.length || 0;
+  const headlineFontSize = headlineLength > 90 ? 39 : headlineLength > 65 ? 44 : headlineLength > 45 ? 50 : 58;
+  const headlineLineEstimate = Math.max(
+    1,
+    Math.ceil(headlineLength / (headlineFontSize <= 44 ? 36 : headlineFontSize <= 50 ? 30 : 25)),
+  );
+  const summaryTop = Math.min(446, 285 + headlineLineEstimate * headlineFontSize * 1.18 + 10);
   const cardStyle: CSSProperties = {
     width: 1080,
     height: 1350,
@@ -435,11 +441,11 @@ export function NewsInfographicPhotocard() {
                 {draft?.kicker || "সংক্ষেপে"}
               </div>
 
-              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: longHeadline ? 49 : 59, fontWeight: 800, lineHeight: 1.18, letterSpacing: -0.7, overflowWrap: "anywhere" }}>
+              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.18, letterSpacing: -0.7, overflowWrap: "anywhere" }}>
                 {draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে"}
               </h1>
 
-              <p style={{ position: "absolute", left: 68, right: 68, top: 408, margin: 0, zIndex: 2, color: "#626762", fontSize: 27, fontWeight: 500, lineHeight: 1.4, overflowWrap: "anywhere" }}>
+              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 25, fontWeight: 500, lineHeight: 1.35, maxHeight: 68, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                 {draft?.summary || "নিউজের বিস্তারিত দিন, AI মূল তথ্য ও সংক্ষিপ্ত ব্যাখ্যা সাজিয়ে দেবে।"}
               </p>
 
@@ -453,8 +459,8 @@ export function NewsInfographicPhotocard() {
                 ) : (
                   <>
                     <div style={{ color: "#E95319", fontSize: 19, fontWeight: 800, letterSpacing: 1.2 }}>এক নজরে</div>
-                    <div style={{ marginTop: 14, color: "#252925", fontSize: 31, lineHeight: 1.35, fontWeight: 600, overflowWrap: "anywhere" }}>
-                      {draft?.summary || "প্রথমে নিউজ দিন, তারপর AI দিয়ে ইনফোগ্রাফিক্স তৈরি করুন।"}
+                    <div style={{ marginTop: 14, color: "#252925", fontSize: 28, lineHeight: 1.3, fontWeight: 600, overflowWrap: "anywhere" }}>
+                      মূল তিনটি তথ্য নিচে সাজানো হয়েছে।
                     </div>
                   </>
                 )}
@@ -466,13 +472,13 @@ export function NewsInfographicPhotocard() {
                   <span style={{ color: "#96988F", fontSize: 15, fontWeight: 700 }}>০১ — ০৩</span>
                 </div>
                 {(draft?.points || emptyDraft.points).map((point, index) => (
-                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 98, padding: "18px 0 14px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
+                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 98, padding: "10px 0 9px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
                     <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: index === 0 ? "#FF5A1A" : "#E9E7DF", color: index === 0 ? "#FFFFFF" : "#3C403B", fontSize: 17, fontWeight: 800 }}>
                       0{index + 1}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 24, lineHeight: 1.2, fontWeight: 800, color: "#222620", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 5, fontSize: 20, lineHeight: 1.3, color: "#686D66", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 22, lineHeight: 1.2, fontWeight: 800, color: "#222620", maxHeight: 28, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 5, fontSize: 18, lineHeight: 1.25, color: "#686D66", maxHeight: 45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
@@ -487,7 +493,7 @@ export function NewsInfographicPhotocard() {
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 1272, height: 2, background: "#DCDAD2", zIndex: 2 }} />
 
-              <div style={{ position: "absolute", left: 66, top: 1290, zIndex: 2, width: 500, color: "#777B73", fontSize: 15, lineHeight: 1.25, overflowWrap: "anywhere" }}>
+              <div style={{ position: "absolute", left: 66, top: 1290, zIndex: 2, width: 500, color: "#777B73", fontSize: 15, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {source.trim() ? "তথ্যসূত্র: " + source.trim() : "তথ্যসূত্র: প্রদত্ত সংবাদ"}
               </div>
 
