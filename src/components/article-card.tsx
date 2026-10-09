@@ -4,9 +4,9 @@ import { formatBanglaDate, writerPath } from "@/lib/bangla";
 import { ArticleMedia } from "@/components/article-media";
 import { articlePath } from "@/lib/ids";
 
-type Props = { article: ArticleCardType; variant?: "lead" | "wide" | "list" };
+type Props = { article: ArticleCardType; variant?: "lead" | "wide" | "list"; priority?: boolean };
 
-export function ArticleCard({ article, variant = "wide" }: Props) {
+export function ArticleCard({ article, variant = "wide", priority = false }: Props) {
   const href = articlePath(article);
   if (variant === "list") {
     return (
@@ -22,7 +22,7 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
     return (
       <article>
         <a href={href} className="group block">
-          <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} className="mb-4 aspect-[16/9]" />
+          <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority className="mb-4 aspect-[16/9]" />
           <span className="text-xs font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
           <h2 className="mt-2 font-serif text-3xl font-bold leading-tight group-hover:text-primary md:text-4xl">{article.title}</h2>
           {article.excerpt ? <p className="mt-3 text-[0.95rem] leading-relaxed text-muted-foreground">{article.excerpt}</p> : null}
@@ -37,7 +37,7 @@ export function ArticleCard({ article, variant = "wide" }: Props) {
   return (
     <article className="border-b border-border pb-4">
       <a href={href} className="group block">
-        <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} className="mb-3 aspect-[16/10]" />
+        <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority={priority} className="mb-3 aspect-[16/10]" />
         <span className="text-[0.68rem] font-bold uppercase tracking-widest text-primary">{categoryName(article.category_slug)}</span>
         <h3 className="mt-1 font-serif text-lg font-semibold leading-snug group-hover:text-primary">{article.title}</h3>
         {article.excerpt ? <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{article.excerpt}</p> : null}
