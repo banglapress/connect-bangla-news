@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Facebook, LoaderCircle, Sparkles, Youtube } from "lucide-react";
+import { CheckCircle2, Facebook, LoaderCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   generateInfographicContent,
