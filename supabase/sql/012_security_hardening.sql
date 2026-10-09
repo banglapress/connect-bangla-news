@@ -98,7 +98,7 @@ CREATE POLICY "staff delete articles"
   ON public.articles FOR DELETE TO authenticated
   USING (public.is_staff(auth.uid()));
 
-REVOKE INSERT, UPDATE, DELETE ON TABLE public.articles FROM anon, PUBLIC;
+REVOKE ALL PRIVILEGES ON TABLE public.articles FROM anon, PUBLIC;
 GRANT SELECT ON TABLE public.articles TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.articles TO authenticated;
 GRANT ALL PRIVILEGES ON TABLE public.articles TO service_role;
@@ -118,7 +118,7 @@ CREATE POLICY "admins manage categories"
   USING (public.has_role(auth.uid(), 'admin'))
   WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
-REVOKE INSERT, UPDATE, DELETE ON TABLE public.categories FROM anon, PUBLIC;
+REVOKE ALL PRIVILEGES ON TABLE public.categories FROM anon, PUBLIC;
 GRANT SELECT ON TABLE public.categories TO anon, authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.categories TO authenticated;
 GRANT ALL PRIVILEGES ON TABLE public.categories TO service_role;
