@@ -6,6 +6,7 @@ import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
 import { publicImageUrl, responsiveImageSources } from "@/lib/image";
 import { renderArticleBody } from "@/lib/article-html";
+import { responsiveImageSources } from "@/lib/image";
 
 const articleQuery = (slug: string) =>
   queryOptions({
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/news/$slug")({
     const a = loaderData.article;
     const description = a.excerpt ?? a.body.slice(0, 150);
     const image = publicImageUrl(a.image_url);
+    const responsiveImage = responsiveImageSources(a.image_url);
     const meta = [
       { title: `${a.title} — The Connect` },
       { name: "description", content: description },
@@ -47,7 +49,16 @@ export const Route = createFileRoute("/news/$slug")({
         { name: "twitter:image", content: image },
       );
     }
-    return { meta };
+    const links = responsiveImage
+      ? [{
+          rel: "preload",
+          as: "image",
+          href: responsiveImage.src,
+          ...(responsiveImage.srcSet ? { imageSrcSet: responsiveImage.srcSet } : {}),
+          imageSizes: "(max-width: 768px) 100vw, 800px",
+        }]
+      : [];
+    return { meta, links };
   },
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
