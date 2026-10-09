@@ -7,6 +7,7 @@ import { ArticleMedia } from "@/components/article-media";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime, writerPath } from "@/lib/bangla";
 import { renderArticleBody } from "@/lib/article-html";
+import { responsiveImageSources } from "@/lib/image";
 
 const categoryQuery = (slug: string) =>
   queryOptions({
@@ -29,7 +30,12 @@ export const Route = createFileRoute("/$section/")({
     const key = decodeURIComponent(params.section || "");
     const story = await context.queryClient.ensureQueryData(articleQuery(key));
     if (story.article) {
-      return { kind: "article" as const, key, pageTitle: `${story.article.title} — The Connect` };
+      return {
+        kind: "article" as const,
+        key,
+        pageTitle: `${story.article.title} — The Connect`,
+        heroImage: responsiveImageSources(story.article.image_url),
+      };
     }
     const page = await context.queryClient.ensureQueryData(categoryQuery(key));
     if (page.category || page.articles.length) {
@@ -43,6 +49,15 @@ export const Route = createFileRoute("/$section/")({
       { charSet: "utf-8" },
       { title: loaderData?.pageTitle || "The Connect" },
     ],
+    links: loaderData?.kind === "article" && loaderData.heroImage
+      ? [{
+          rel: "preload",
+          as: "image",
+          href: loaderData.heroImage.src,
+          ...(loaderData.heroImage.srcSet ? { imageSrcSet: loaderData.heroImage.srcSet } : {}),
+          imageSizes: "(max-width: 768px) 100vw, 800px",
+        }]
+      : [],
   }),
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
