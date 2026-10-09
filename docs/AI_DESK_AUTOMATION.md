@@ -4,18 +4,20 @@ The AI Desk uses GitHub Actions as the primary high-frequency scheduler and Supa
 
 ## Schedule
 
-The primary scheduler runs every 15 minutes:
+The free-tier pilot scheduler runs every 30 minutes:
 
-- minute 7, 22, 37 and 52 of every hour (UTC)
-- roughly every 15 minutes in Bangladesh time as well
+- minute 7 and 37 of every hour (UTC)
+- one queue worker per run to reduce quota pressure
 
 Each scheduled run:
 
 1. ingests active RSS sources;
-2. starts four parallel queue workers;
-3. each worker claims one story conditionally before processing;
+2. starts one queue worker only if ingest succeeds;
+3. the worker claims one story conditionally before processing;
 4. retries transient AI/API failures with backoff;
 5. creates a draft article only — never auto-publishes.
+
+The current target is 15–20 unique final drafts/day, with a hard cap of 20. Quality takes priority over filling the daily count.
 
 The GitHub workflow is in:
 
@@ -56,7 +58,7 @@ The workflow supports `workflow_dispatch`.
 
 GitHub → Actions → The Connect AI Desk Auto Draft → Run workflow
 
-A manual run executes the ingest step and then the four workers.
+A manual run executes the ingest step and then one worker if ingest succeeds.
 
 ## Queue recovery
 
