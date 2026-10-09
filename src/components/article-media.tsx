@@ -1,4 +1,4 @@
-import { publicImageUrl } from "@/lib/image";
+import { responsiveImageSources } from "@/lib/image";
 import { youtubeEmbedUrl } from "@/lib/youtube";
 
 type Props = {
@@ -8,9 +8,10 @@ type Props = {
   title: string;
   className?: string;
   priority?: boolean;
+  sizes?: string;
 };
 
-export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, className = "", priority = false }: Props) {
+export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, className = "", priority = false, sizes }: Props) {
   if (contentType === "video") {
     const embed = youtubeEmbedUrl(youtubeUrl);
     if (embed) {
@@ -28,11 +29,13 @@ export function ArticleMedia({ contentType, youtubeUrl, imageUrl, title, classNa
       );
     }
   }
-  const image = publicImageUrl(imageUrl);
+  const image = responsiveImageSources(imageUrl);
   if (!image) return null;
   return (
     <img
-      src={image}
+      src={image.src}
+      srcSet={image.srcSet}
+      sizes={sizes || (priority ? "(max-width: 768px) 100vw, 800px" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px")}
       alt={title}
       width={1200}
       height={675}
