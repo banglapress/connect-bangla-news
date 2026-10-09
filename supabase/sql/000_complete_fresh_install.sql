@@ -136,12 +136,7 @@ begin
   )
   on conflict (id) do nothing;
 
-  if not exists (select 1 from public.user_roles where role = 'admin') then
-    insert into public.user_roles (user_id, role)
-    values (new.id, 'admin')
-    on conflict do nothing;
-  end if;
-
+  -- New accounts never receive editorial roles automatically.
   return new;
 end;
 $$;
@@ -161,42 +156,22 @@ select
 from auth.users
 on conflict (id) do nothing;
 
--- Promote the earliest existing Auth account to admin.
--- This is needed when the Auth account was created before this schema was installed.
-insert into public.user_roles (user_id, role)
-select id, 'admin'
-from auth.users
-order by created_at asc, id asc
-limit 1
-on conflict (user_id, role) do nothing;
+-- Admin assignment is manual: promote the intended owner account from SQL Editor.
+
 
 create or replace function public.ensure_first_admin()
 returns boolean
-language plpgsql
+language sql
+stable
 security definer
 set search_path = public
 as $$
-declare
-  admin_count int;
-begin
-  select count(*) into admin_count
-  from public.user_roles
-  where role = 'admin';
-
-  if admin_count = 0 then
-    insert into public.user_roles (user_id, role)
-    values (auth.uid(), 'admin')
-    on conflict do nothing;
-    return true;
-  end if;
-
-  return exists (
-    select 1
-    from public.user_roles
-    where user_id = auth.uid()
-      and role in ('admin', 'editor')
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles
+    WHERE user_id = auth.uid()
+      AND role::text IN ('admin', 'editor')
   );
-end;
 $$;
 
 revoke all on function public.ensure_first_admin() from public, anon;
@@ -613,40 +588,119 @@ alter table public.desk_story_images enable row level security;
 drop policy if exists writers_read on public.writers;
 drop policy if exists writers_write on public.writers;
 create policy writers_read on public.writers for select using (true);
-create policy writers_write on public.writers for all to authenticated using (true) with check (true);
+create policy writers_write
+  on public.writers for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
+
+-- Do not expose writer email addresses through the public Data API.
+revoke select on table public.writers from anon, authenticated, public;
+revoke select (email) on table public.writers from anon, authenticated, public;
+grant select (id, name, slug, bio, photo_url, managed_by_desk, created_at)
+  on table public.writers to anon, authenticated;
+grant insert, update, delete on table public.writers to authenticated;
+grant all privileges on table public.writers to service_role;
 
 drop policy if exists news_sources_read on public.news_sources;
 drop policy if exists news_sources_write on public.news_sources;
-create policy news_sources_read on public.news_sources for select to authenticated using (true);
-create policy news_sources_write on public.news_sources for all to authenticated using (true) with check (true);
+drop policy if exists news_sources_staff_all on public.news_sources;
+create policy news_sources_staff_all
+  on public.news_sources for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_stories_all on public.desk_stories;
-create policy desk_stories_all on public.desk_stories for all to authenticated using (true) with check (true);
+drop policy if exists desk_stories_staff_all on public.desk_stories;
+create policy desk_stories_staff_all
+  on public.desk_stories for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_story_sources_all on public.desk_story_sources;
-create policy desk_story_sources_all on public.desk_story_sources for all to authenticated using (true) with check (true);
+drop policy if exists desk_story_sources_staff_all on public.desk_story_sources;
+create policy desk_story_sources_staff_all
+  on public.desk_story_sources for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_jobs_all on public.desk_jobs;
-create policy desk_jobs_all on public.desk_jobs for all to authenticated using (true) with check (true);
+drop policy if exists desk_jobs_staff_all on public.desk_jobs;
+create policy desk_jobs_staff_all
+  on public.desk_jobs for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_settings_all on public.desk_settings;
-create policy desk_settings_all on public.desk_settings for all to authenticated using (true) with check (true);
+drop policy if exists desk_settings_staff_all on public.desk_settings;
+create policy desk_settings_staff_all
+  on public.desk_settings for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_source_claims_all on public.desk_source_claims;
-create policy desk_source_claims_all on public.desk_source_claims for all to authenticated using (true) with check (true);
+drop policy if exists desk_source_claims_staff_all on public.desk_source_claims;
+create policy desk_source_claims_staff_all
+  on public.desk_source_claims for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_fact_checks_all on public.desk_fact_checks;
-create policy desk_fact_checks_all on public.desk_fact_checks for all to authenticated using (true) with check (true);
+drop policy if exists desk_fact_checks_staff_all on public.desk_fact_checks;
+create policy desk_fact_checks_staff_all
+  on public.desk_fact_checks for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_discovery_hits_all on public.desk_discovery_hits;
-create policy desk_discovery_hits_all on public.desk_discovery_hits for all to authenticated using (true) with check (true);
+drop policy if exists desk_discovery_hits_staff_all on public.desk_discovery_hits;
+create policy desk_discovery_hits_staff_all
+  on public.desk_discovery_hits for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_story_images_staff_all on public.desk_story_images;
 create policy desk_story_images_staff_all
-  on public.desk_story_images
-  for all to authenticated
+  on public.desk_story_images for all to authenticated
   using (public.is_staff(auth.uid()))
   with check (public.is_staff(auth.uid()));
+
+-- Internal tables are only accessible to authenticated users with staff RLS approval.
+revoke all privileges on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings,
+  public.desk_source_claims,
+  public.desk_fact_checks,
+  public.desk_discovery_hits,
+  public.desk_story_images
+from anon, public;
+
+grant select, insert, update, delete on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings,
+  public.desk_source_claims,
+  public.desk_fact_checks,
+  public.desk_discovery_hits,
+  public.desk_story_images
+to authenticated;
+
+grant all privileges on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings,
+  public.desk_source_claims,
+  public.desk_fact_checks,
+  public.desk_discovery_hits,
+  public.desk_story_images
+to service_role;
+
 
 insert into public.desk_settings (key, value)
 values
