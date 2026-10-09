@@ -423,6 +423,9 @@ create table if not exists public.news_sources (
   updated_at timestamptz not null default now()
 );
 
+-- The seed uses ON CONFLICT (name), so this unique index is required.
+create unique index if not exists news_sources_name_uidx on public.news_sources (name);
+
 create table if not exists public.desk_stories (
   id uuid primary key default gen_random_uuid(),
   cluster_key text unique,
