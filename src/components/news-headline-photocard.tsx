@@ -206,7 +206,7 @@ export function NewsHeadlinePhotocard() {
           // The card itself uses inline, fixed colors, so remove app styles from
           // the export clone while preserving the Bengali web-font stylesheet.
           clonedDocument.querySelectorAll("style, link[rel='stylesheet']").forEach((element) => {
-            if (element instanceof HTMLLinkElement && element.href.includes("fonts.googleapis.com")) return;
+            if (element.tagName.toLowerCase() === "link" && (element as HTMLLinkElement).href.includes("fonts.googleapis.com")) return;
             element.remove();
           });
           clonedDocument.documentElement.style.backgroundColor = "#FFFFFF";

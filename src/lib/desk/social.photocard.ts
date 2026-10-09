@@ -12,10 +12,7 @@ export const publishHeadlinePhotocard = createServerFn({ method: "POST" })
       .object({
         imageDataUrl: z
           .string()
-          .max(
-            4_200_000,
-            "ফটোকার্ডটি বেশি বড়। আবার পোস্ট করার চেষ্টা করুন।",
-          )
+          .max(4_200_000, "ফটোকার্ডটি বেশি বড়। আবার পোস্ট করার চেষ্টা করুন।")
           .regex(
             /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/,
             "ফটোকার্ডের ছবি সঠিক ফরম্যাটে তৈরি হয়নি।",
