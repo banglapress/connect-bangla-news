@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - "src/routes/api/desk-auto-draft.ts"
+      - "src/lib/desk/auto-draft.ts"
+      - "src/lib/desk/ingest.functions.ts"
       - ".github/workflows/desk-auto-draft.yml"
   schedule:
     # Every 30 minutes. One AI worker keeps the free-tier pilot gentle on quota.
@@ -35,7 +37,7 @@ jobs:
 
   workers:
     needs: ingest
-    if: ${{ always() && needs.ingest.result != 'cancelled' }}
+    if: ${{ needs.ingest.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
