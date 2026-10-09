@@ -38,8 +38,12 @@ alter table public.desk_story_images enable row level security;
 drop policy if exists desk_story_images_staff_all on public.desk_story_images;
 create policy desk_story_images_staff_all
   on public.desk_story_images
-  for all
-  using (true)
-  with check (true);
+  for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
+
+revoke all privileges on table public.desk_story_images from anon, public;
+grant select, insert, update, delete on table public.desk_story_images to authenticated;
+grant all privileges on table public.desk_story_images to service_role;
 
 notify pgrst, 'reload schema';
