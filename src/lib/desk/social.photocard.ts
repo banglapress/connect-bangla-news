@@ -12,7 +12,7 @@ export const publishHeadlinePhotocard = createServerFn({ method: "POST" })
       imageDataUrl: z
         .string()
         .max(4_200_000, "ফটোকার্ডটি বেশি বড়। আবার পোস্ট করার চেষ্টা করুন।")
-        .regex(/^data:image\\/jpeg;base64,[A-Za-z0-9+/=]+$/, "ফটোকার্ডের ছবি সঠিক ফরম্যাটে তৈরি হয়নি।"),
+        .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, "ফটোকার্ডের ছবি সঠিক ফরম্যাটে তৈরি হয়নি।"),
       caption: z.string().trim().min(1, "Facebook ক্যাপশন লিখুন।").max(5_000),
     }).parse(data),
   )
@@ -29,7 +29,7 @@ export const publishHeadlinePhotocard = createServerFn({ method: "POST" })
       "headline-" + crypto.randomUUID(),
       data.imageDataUrl,
     );
-    if (!/^https:\\/\\//i.test(imageUrl)) {
+    if (!/^https:\/\//i.test(imageUrl)) {
       throw new Error("Facebook-এ পাঠানোর আগে ছবির public HTTPS URL তৈরি করা যায়নি।");
     }
 
