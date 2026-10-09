@@ -34,8 +34,8 @@ async function assertStaff(context: { supabase: any; userId: string }) {
 
 export const listWriters = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = publicClient();
-  const { data, error } = await supabase.from("writers").select("id, name, slug, bio, photo_url, email, managed_by_desk").order("name");
-  if (!error && data) return data as Writer[];
+  const { data, error } = await supabase.from("writers").select("id, name, slug, bio, photo_url, managed_by_desk").order("name");
+  if (!error && data) return (data ?? []).map((row) => ({ ...row, email: null })) as Writer[];
 
   const articles = await supabase.from("articles").select("author_name").eq("status", "published").limit(200);
   const names = [...new Set((articles.data ?? []).map((row) => row.author_name).filter(Boolean))];
@@ -48,6 +48,19 @@ export const listWriters = createServerFn({ method: "GET" }).handler(async () =>
     managed_by_desk: true,
   })) as Writer[];
 });
+
+export const listWritersForAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context as { supabase: any; userId: string });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("writers")
+      .select("id, name, slug, bio, photo_url, email, managed_by_desk")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Writer[];
+  });
 
 export const saveWriter = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -97,8 +110,8 @@ export const getWriterPage = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const slug = decodeURIComponent(data.slug);
     const supabase = publicClient();
-    const writerRes = await supabase.from("writers").select("id, name, slug, bio, photo_url, email, managed_by_desk").eq("slug", slug).maybeSingle();
-    const writer = (!writerRes.error ? writerRes.data : null) as Writer | null;
+    const writerRes = await supabase.from("writers").select("id, name, slug, bio, photo_url, managed_by_desk").eq("slug", slug).maybeSingle();
+    const writer = (!writerRes.error && writerRes.data ? { ...writerRes.data, email: null } : null) as Writer | null;
 
     const published = await supabase
       .from("articles")
