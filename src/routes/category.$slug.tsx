@@ -8,6 +8,8 @@ const categoryQuery = (slug: string) =>
   queryOptions({
     queryKey: ["category", slug],
     queryFn: () => getCategoryPage({ data: { slug } }),
+    staleTime: 30_000,
+    gcTime: 120_000,
   });
 
 export const Route = createFileRoute("/category/$slug")({
