@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Image, LayoutTemplate, Palette } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChartNoAxesCombined, Image, LayoutTemplate } from "lucide-react";
+import { NewsHeadlinePhotocard } from "@/components/news-headline-photocard";
 
 export const Route = createFileRoute("/_authenticated/admin/facebook-cards")({
   head: () => ({
@@ -11,19 +13,13 @@ export const Route = createFileRoute("/_authenticated/admin/facebook-cards")({
   component: FacebookCardsPage,
 });
 
-const templates = [
-  { number: 1, name: "Editorial Photo", description: "বড় ছবি + শক্তিশালী headline + category label" },
-  { number: 2, name: "Breaking", description: "Breaking / urgent story-এর জন্য high-contrast layout" },
-  { number: 3, name: "Explainer", description: "Explainer story-এর জন্য headline-led visual" },
-  { number: 4, name: "Feature", description: "Feature / long-form story-এর জন্য magazine-style card" },
-  { number: 5, name: "Minimal", description: "পরিষ্কার, কম উপাদানের premium editorial look" },
-];
-
 function FacebookCardsPage() {
+  const [activeTool, setActiveTool] = useState<"headline" | "library">("library");
+
   return (
     <div className="min-h-[70vh] bg-muted/20">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded-2xl border border-border bg-background p-6 shadow-sm">
+      <div className="mx-auto max-w-[1440px] px-4 py-8">
+        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -36,8 +32,7 @@ function FacebookCardsPage() {
                 </div>
               </div>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                এখানে Facebook-এর ৪:৫ photo card-এর template নির্বাচন, preview ও generation workflow রাখা হবে।
-                Card generation engine পরের ধাপে যুক্ত হবে।
+                প্রতিটি গ্রাফিক্সের জন্য আলাদা মডিউল থাকবে। প্রথমে নিউজ হেডলাইন ফটোকার্ড চালু করা হয়েছে; নিউজ ইনফোগ্রাফিক্স আলাদা মডিউল হিসেবে পরে যুক্ত হবে।
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -50,34 +45,89 @@ function FacebookCardsPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {templates.map((template) => (
-              <section key={template.number} className="rounded-xl border border-border bg-background p-4">
+          {activeTool === "headline" ? (
+            <div className="mt-6">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Photocard module 01</p>
+                  <h2 className="mt-1 font-serif text-xl font-bold">নিউজ হেডলাইন ফটোকার্ড</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">ছবি ও তথ্য সম্পাদনা করে PNG তৈরি করুন।</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTool("library")}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-secondary"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  সব ফটোকার্ড
+                </button>
+              </div>
+              <NewsHeadlinePhotocard />
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <section className="flex flex-col rounded-xl border border-primary/30 bg-background p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="inline-flex items-center gap-2 text-sm font-semibold">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-xs">
-                      {String(template.number).padStart(2, "0")}
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Image className="h-4 w-4" />
                     </span>
-                    {template.name}
+                    নিউজ হেডলাইন ফটোকার্ড
                   </div>
                   <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
                 </div>
 
-                <div className="mt-4 flex aspect-[4/5] items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30">
-                  <div className="text-center">
-                    <Palette className="mx-auto h-7 w-7 text-muted-foreground" />
-                    <p className="mt-2 text-xs font-medium text-muted-foreground">Template preview</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Design engine coming next</p>
+                <div className="mt-4 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-black/5 bg-[#E9EBEE] p-4">
+                  <div className="w-full max-w-[230px] rounded-md bg-white p-2 shadow-sm">
+                    <div className="relative flex aspect-square flex-col items-center overflow-hidden bg-[#E9EBEE] px-3 pt-2 text-center">
+                      <span className="text-[8px] font-bold tracking-[0.2em] text-[#333]">THE CONNECT</span>
+                      <span className="mt-2 h-1 w-full bg-[#FF5A1A]" />
+                      <span className="mt-2 aspect-video w-full bg-[#D8DCE2]" />
+                      <span className="mt-2 text-[11px] font-bold leading-4 text-[#111]">নিউজ হেডলাইন</span>
+                      <span className="mt-1 w-2/3 border-t border-[#FF5A1A]" />
+                    </div>
                   </div>
                 </div>
 
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">{template.description}</p>
-                <button type="button" disabled className="mt-4 w-full rounded-lg border border-border px-3 py-2 text-xs font-medium opacity-50">
-                  এই template ব্যবহার করুন
+                <p className="mt-3 flex-1 text-xs leading-5 text-muted-foreground">
+                  ছবি, হেডলাইন, সাব-হেডলাইন, ক্যাটেগরি, লোকেশন, তারিখ ও তথ্যসূত্রসহ ১০৮০ × ১০৮০ পিক্সেলের কার্ড।
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTool("headline")}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  ফটোকার্ড তৈরি করুন
+                  <ArrowRight className="h-4 w-4" />
                 </button>
               </section>
-            ))}
-          </div>
+
+              <section className="flex flex-col rounded-xl border border-border bg-background p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="inline-flex items-center gap-2 text-sm font-semibold">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                      <ChartNoAxesCombined className="h-4 w-4" />
+                    </span>
+                    নিউজ ইনফোগ্রাফিক্স
+                  </div>
+                  <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">পরে যুক্ত হবে</span>
+                </div>
+                <div className="mt-4 flex aspect-square items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30 p-6">
+                  <div className="max-w-[220px] text-center">
+                    <ChartNoAxesCombined className="mx-auto h-9 w-9 text-muted-foreground" />
+                    <p className="mt-3 text-sm font-semibold">আলাদা গ্রাফিক্স মডিউল</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">ইনফোগ্রাফিক্সের কোড এখানে আলাদাভাবে যুক্ত করা হবে।</p>
+                  </div>
+                </div>
+                <p className="mt-3 flex-1 text-xs leading-5 text-muted-foreground">
+                  তথ্য, সংখ্যা ও চার্টভিত্তিক ভিজ্যুয়ালের জন্য পৃথক টেমপ্লেট। এই মডিউলটি এখনো চালু নয়।
+                </p>
+                <button type="button" disabled className="mt-4 w-full cursor-not-allowed rounded-lg border border-border px-3 py-2.5 text-sm text-muted-foreground opacity-60">
+                  কোড পরে যুক্ত হবে
+                </button>
+              </section>
+            </div>
+          )}
         </div>
       </div>
     </div>
