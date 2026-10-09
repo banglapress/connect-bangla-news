@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertDeskStaff } from "@/lib/desk/staff";
 import { articlePath, makePublicId } from "@/lib/ids";
 import { publicImageUrl } from "@/lib/image";
 import { facebookPublicStatus, publishPageLink } from "@/lib/desk/facebook";
@@ -45,17 +46,14 @@ function isStaff(roles: string[]) {
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    let roles = await rolesFromClient(context.supabase, context.userId);
-    if (!isStaff(roles)) {
-      const boot = await context.supabase.rpc("ensure_first_admin");
-      if (boot.data === true) roles = ["admin"];
-    }
+    const roles = await rolesFromClient(context.supabase, context.userId);
     return { roles, isStaff: isStaff(roles) };
   });
 
 export const listAllArticles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const { data, error } = await context.supabase
       .from("articles")
       .select("id, title, slug, category_slug, status, published_at, updated_at, author_name")
@@ -91,6 +89,7 @@ export const getArticleForEdit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const { data: row, error } = await context.supabase.from("articles").select("*").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     return row;
@@ -162,6 +161,7 @@ export const getArticleFacebookState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const articleRes = await context.supabase
       .from("articles")
       .select("id,status")
@@ -203,6 +203,7 @@ export const publishArticleToFacebook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid(), confirm: z.literal(true) }).parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const articleRes = await context.supabase.from("articles").select("*").eq("id", data.id).single();
     if (articleRes.error) throw new Error(articleRes.error.message);
     const article = articleRes.data;
@@ -294,6 +295,7 @@ export const createArticle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => articleInput.parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     return writeArticle(context.supabase, {
       ...data,
       author_id: context.userId,
@@ -307,6 +309,7 @@ export const updateArticle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => articleInput.extend({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const { id, ...fields } = data;
     const { data: existing } = await context.supabase.from("articles").select("published_at").eq("id", id).maybeSingle();
     const saved = await writeArticle(context.supabase, {
@@ -322,6 +325,7 @@ export const deleteArticle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
     const { error } = await context.supabase.from("articles").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
