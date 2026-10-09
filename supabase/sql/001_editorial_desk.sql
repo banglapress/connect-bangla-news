@@ -105,24 +105,78 @@ alter table public.desk_settings enable row level security;
 drop policy if exists writers_read on public.writers;
 drop policy if exists writers_write on public.writers;
 create policy writers_read on public.writers for select using (true);
-create policy writers_write on public.writers for all to authenticated using (true) with check (true);
+create policy writers_write
+  on public.writers for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
+
+revoke select on table public.writers from anon, authenticated, public;
+revoke select (email) on table public.writers from anon, authenticated, public;
+grant select (id, name, slug, bio, photo_url, managed_by_desk, created_at)
+  on table public.writers to anon, authenticated;
+grant insert, update, delete on table public.writers to authenticated;
+grant all privileges on table public.writers to service_role;
 
 drop policy if exists news_sources_read on public.news_sources;
 drop policy if exists news_sources_write on public.news_sources;
-create policy news_sources_read on public.news_sources for select to authenticated using (true);
-create policy news_sources_write on public.news_sources for all to authenticated using (true) with check (true);
+drop policy if exists news_sources_staff_all on public.news_sources;
+create policy news_sources_staff_all
+  on public.news_sources for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_stories_all on public.desk_stories;
-create policy desk_stories_all on public.desk_stories for all to authenticated using (true) with check (true);
+drop policy if exists desk_stories_staff_all on public.desk_stories;
+create policy desk_stories_staff_all
+  on public.desk_stories for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_story_sources_all on public.desk_story_sources;
-create policy desk_story_sources_all on public.desk_story_sources for all to authenticated using (true) with check (true);
+drop policy if exists desk_story_sources_staff_all on public.desk_story_sources;
+create policy desk_story_sources_staff_all
+  on public.desk_story_sources for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_jobs_all on public.desk_jobs;
-create policy desk_jobs_all on public.desk_jobs for all to authenticated using (true) with check (true);
+drop policy if exists desk_jobs_staff_all on public.desk_jobs;
+create policy desk_jobs_staff_all
+  on public.desk_jobs for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
 
 drop policy if exists desk_settings_all on public.desk_settings;
-create policy desk_settings_all on public.desk_settings for all to authenticated using (true) with check (true);
+drop policy if exists desk_settings_staff_all on public.desk_settings;
+create policy desk_settings_staff_all
+  on public.desk_settings for all to authenticated
+  using (public.is_staff(auth.uid()))
+  with check (public.is_staff(auth.uid()));
+
+revoke all privileges on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings
+from anon, public;
+
+grant select, insert, update, delete on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings
+to authenticated;
+
+grant all privileges on table
+  public.news_sources,
+  public.desk_stories,
+  public.desk_story_sources,
+  public.desk_jobs,
+  public.desk_settings
+to service_role;
+
 
 insert into public.desk_settings (key, value)
 values
