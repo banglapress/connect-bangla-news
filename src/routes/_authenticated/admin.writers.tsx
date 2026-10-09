@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { deleteWriter, listWriters, saveWriter } from "@/lib/writer.functions";
+import { deleteWriter, listWritersForAdmin, saveWriter } from "@/lib/writer.functions";
 import { getMyAccess } from "@/lib/admin.functions";
 import { slugifyName } from "@/lib/bangla";
 import { uploadNewsImage } from "@/lib/upload-image";
@@ -18,7 +18,7 @@ const empty = { id: "", name: "", slug: "", bio: "", photo_url: "", email: "", m
 function WritersAdmin() {
   const queryClient = useQueryClient();
   const fetchAccess = useServerFn(getMyAccess);
-  const fetchWriters = useServerFn(listWriters);
+  const fetchWriters = useServerFn(listWritersForAdmin);
   const save = useServerFn(saveWriter);
   const remove = useServerFn(deleteWriter);
   const access = useQuery({ queryKey: ["access"], queryFn: () => fetchAccess() });

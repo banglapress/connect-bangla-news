@@ -28,19 +28,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const part = token.split('.')[1];
-    if (!part) return null;
-    const padded = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
-    const json = atob(padded);
-    const payload = JSON.parse(json) as Record<string, unknown>;
-    return payload && typeof payload === 'object' ? payload : null;
-  } catch {
-    return null;
-  }
-}
-
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     const SUPABASE_URL = getSupabaseUrl();
@@ -114,16 +101,6 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
       if (typeof sub === 'string' && sub) {
         userId = sub;
         claims = claimsResult.data?.claims as Record<string, unknown>;
-      }
-    }
-
-    if (!userId) {
-      const payload = decodeJwtPayload(token);
-      const sub = payload && typeof payload.sub === 'string' ? payload.sub : undefined;
-      const exp = payload && typeof payload.exp === 'number' ? payload.exp : undefined;
-      if (sub && (!exp || exp * 1000 > Date.now() - 30_000)) {
-        userId = sub;
-        claims = payload ?? { sub };
       }
     }
 
