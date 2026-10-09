@@ -3,6 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getHomeData } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
 import { CATEGORIES } from "@/lib/categories";
+import { responsiveImageSources } from "@/lib/image";
 
 const homeQuery = queryOptions({
   queryKey: ["home"],
@@ -13,23 +14,39 @@ const homeQuery = queryOptions({
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(homeQuery),
-  head: () => ({
-    meta: [
-      { title: "The Connect — বাংলা সংবাদ ও মতামতের পোর্টাল" },
-      {
-        name: "description",
-        content:
-          "The Connect-এ পড়ুন জাতীয়, আন্তর্জাতিক, খেলা, অর্থনীতি, মতামতসহ দিনের সব গুরুত্বপূর্ণ বাংলা খবর ও বিশ্লেষণ।",
-      },
-      { property: "og:title", content: "The Connect — বাংলা সংবাদ ও মতামত" },
-      {
-        property: "og:description",
-        content: "দিনের সব গুরুত্বপূর্ণ বাংলা খবর, বিশ্লেষণ ও কলাম এক জায়গায়।",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const articles = loaderData?.articles ?? [];
+    const lead = articles.find((article) => article.is_lead) ?? articles[0];
+    const heroImage = responsiveImageSources(lead?.image_url);
+    const links = heroImage
+      ? [{
+          rel: "preload",
+          as: "image",
+          href: heroImage.src,
+          ...(heroImage.srcSet ? { imageSrcSet: heroImage.srcSet } : {}),
+          imageSizes: "(max-width: 768px) 100vw, 800px",
+        }]
+      : [];
+
+    return {
+      meta: [
+        { title: "The Connect — বাংলা সংবাদ ও মতামতের পোর্টাল" },
+        {
+          name: "description",
+          content:
+            "The Connect-এ পড়ুন জাতীয়, আন্তর্জাতিক, খেলা, অর্থনীতি, মতামতসহ দিনের সব গুরুত্বপূর্ণ বাংলা খবর ও বিশ্লেষণ।",
+        },
+        { property: "og:title", content: "The Connect — বাংলা সংবাদ ও মতামত" },
+        {
+          property: "og:description",
+          content: "দিনের সব গুরুত্বপূর্ণ বাংলা খবর, বিশ্লেষণ ও কলাম এক জায়গায়।",
+        },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+      links,
+    };
+  },
   component: Home,
 });
 
