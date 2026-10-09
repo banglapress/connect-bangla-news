@@ -12,8 +12,8 @@ type InfographicDraft = {
   kicker: string;
   headline: string;
   summary: string;
-  featured_stat: string;
-  featured_stat_label: string;
+  featured_fact: string;
+  featured_fact_detail: string;
   points: InfographicPoint[];
   takeaway: string;
   caption: string;
@@ -54,8 +54,8 @@ const emptyDraft: InfographicDraft = {
   kicker: "সংক্ষেপে",
   headline: "",
   summary: "",
-  featured_stat: "",
-  featured_stat_label: "",
+  featured_fact: "",
+  featured_fact_detail: "",
   points: [
     { heading: "প্রথম তথ্য", detail: "" },
     { heading: "দ্বিতীয় তথ্য", detail: "" },
@@ -143,8 +143,8 @@ export function NewsInfographicPhotocard() {
         kicker: result.kicker,
         headline: result.headline,
         summary: result.summary,
-        featured_stat: result.featured_stat,
-        featured_stat_label: result.featured_stat_label,
+        featured_fact: result.featured_fact,
+        featured_fact_detail: result.featured_fact_detail,
         points: result.points,
         takeaway: result.takeaway,
         caption: result.caption,
@@ -378,14 +378,14 @@ export function NewsInfographicPhotocard() {
                   <textarea value={draft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} rows={3} maxLength={320} className={fieldClass} />
                 </label>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <label className={labelClass}>
-                    মূল সংখ্যা (ঐচ্ছিক)
-                    <input value={draft.featured_stat} onChange={(event) => updateDraft({ featured_stat: event.target.value })} maxLength={45} placeholder="যেমন: ৩২.৭৮%" className={fieldClass} />
+                    গুরুত্বপূর্ণ তথ্য / হাইলাইট (ঐচ্ছিক)
+                    <textarea value={draft.featured_fact} onChange={(event) => updateDraft({ featured_fact: event.target.value })} rows={3} maxLength={100} placeholder="সংখ্যা না হলেও চলবে—নিউজের সবচেয়ে তাৎপর্যপূর্ণ তথ্য" className={fieldClass} />
                   </label>
                   <label className={labelClass}>
-                    সংখ্যার ব্যাখ্যা
-                    <input value={draft.featured_stat_label} onChange={(event) => updateDraft({ featured_stat_label: event.target.value })} maxLength={140} placeholder="কী বোঝাচ্ছে" className={fieldClass} />
+                    সহায়ক ব্যাখ্যা (ঐচ্ছিক)
+                    <textarea value={draft.featured_fact_detail} onChange={(event) => updateDraft({ featured_fact_detail: event.target.value })} rows={2} maxLength={140} placeholder="প্রয়োজনে এক লাইনের ব্যাখ্যা বা প্রেক্ষাপট" className={fieldClass} />
                   </label>
                 </div>
 
@@ -449,20 +449,22 @@ export function NewsInfographicPhotocard() {
                 {draft?.summary || "নিউজের বিস্তারিত দিন, AI মূল তথ্য ও সংক্ষিপ্ত ব্যাখ্যা সাজিয়ে দেবে।"}
               </p>
 
-              <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_stat ? "#191D1A" : "#F0EDE5", color: draft?.featured_stat ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                {draft?.featured_stat ? (
+              <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FF8A5C", fontSize: 18, fontWeight: 700, letterSpacing: 2 }}>মূল পরিসংখ্যান</div>
-                    <div style={{ marginTop: 2, color: "#FFFFFF", fontSize: draft.featured_stat.length > 13 ? 64 : 86, fontWeight: 800, lineHeight: 1.12, overflowWrap: "anywhere" }}>{draft.featured_stat}</div>
-                    <div style={{ marginTop: 8, color: "#D4D8D2", fontSize: 25, lineHeight: 1.25, overflowWrap: "anywhere" }}>{draft.featured_stat_label}</div>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact.length > 76 ? 32 : draft.featured_fact.length > 48 ? 38 : draft.featured_fact.length > 30 ? 44 : 54, fontWeight: 800, lineHeight: 1.16, maxHeight: draft.featured_fact_detail ? 104 : 154, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                      {draft.featured_fact}
+                    </div>
+                    {draft.featured_fact_detail ? (
+                      <div style={{ marginTop: 8, color: "#D4D8D2", fontSize: 22, lineHeight: 1.22, maxHeight: 54, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                        {draft.featured_fact_detail}
+                      </div>
+                    ) : null}
                   </>
                 ) : (
-                  <>
-                    <div style={{ color: "#E95319", fontSize: 19, fontWeight: 800, letterSpacing: 1.2 }}>এক নজরে</div>
-                    <div style={{ marginTop: 14, color: "#252925", fontSize: 28, lineHeight: 1.3, fontWeight: 600, overflowWrap: "anywhere" }}>
-                      মূল তিনটি তথ্য নিচে সাজানো হয়েছে।
-                    </div>
-                  </>
+                  <div style={{ color: "#555A56", fontSize: 28, lineHeight: 1.3, fontWeight: 600, overflowWrap: "anywhere" }}>
+                    গুরুত্বপূর্ণ তথ্য এখানে তুলে ধরা হবে।
+                  </div>
                 )}
               </div>
 
@@ -517,7 +519,7 @@ export function NewsInfographicPhotocard() {
               <>
                 <div className="flex items-start gap-2 rounded-lg border border-border bg-white/70 p-3 text-xs leading-5 text-muted-foreground">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  AI কনটেন্ট প্রস্তুত। সংখ্যা ও তথ্য মূল নিউজের সঙ্গে মিলিয়ে দেখে নিন। পরিবর্তন করলে আবার অনুমোদন দিতে হবে।
+                  AI কনটেন্ট প্রস্তুত। সব তথ্য মূল নিউজের সঙ্গে মিলিয়ে দেখে নিন। পরিবর্তন করলে আবার অনুমোদন দিতে হবে।
                 </div>
                 <label className="flex items-start gap-2 rounded-lg border border-border bg-background p-3 text-sm leading-5">
                   <input
@@ -530,7 +532,7 @@ export function NewsInfographicPhotocard() {
                     }}
                     disabled={busy || Boolean(postedPostId)}
                   />
-                  <span>আমি ইনফোগ্রাফিক্সের লেখা, সংখ্যা ও প্রিভিউ যাচাই করেছি। Facebook-এ পোস্ট করার অনুমোদন দিচ্ছি।</span>
+                  <span>আমি ইনফোগ্রাফিক্সের লেখা ও প্রিভিউ যাচাই করেছি। Facebook-এ পোস্ট করার অনুমোদন দিচ্ছি।</span>
                 </label>
                 <button
                   type="button"
