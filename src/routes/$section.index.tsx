@@ -12,12 +12,16 @@ const categoryQuery = (slug: string) =>
   queryOptions({
     queryKey: ["category", slug],
     queryFn: () => getCategoryPage({ data: { slug } }),
+    staleTime: 30_000,
+    gcTime: 120_000,
   });
 
 const articleQuery = (uid: string) =>
   queryOptions({
     queryKey: ["article", uid],
     queryFn: () => getArticle({ data: { slug: uid } }),
+    staleTime: 30_000,
+    gcTime: 120_000,
   });
 
 export const Route = createFileRoute("/$section/")({
@@ -73,7 +77,7 @@ export const Route = createFileRoute("/$section/")({
                 {" "}· {formatBanglaDateTime(article.published_at)}
               </p>
               <div className="mt-6">
-                <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} />
+                <ArticleMedia contentType={article.content_type} youtubeUrl={article.youtube_url} imageUrl={article.image_url} title={article.title} priority />
                 {article.image_caption && article.content_type !== "video" ? (
                   <p className="mt-1 text-xs text-muted-foreground">{article.image_caption}</p>
                 ) : null}
@@ -103,8 +107,8 @@ export const Route = createFileRoute("/$section/")({
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {page.data.articles.map((a) => (
-              <ArticleCard key={a.id} article={a} />
+            {page.data.articles.map((a, index) => (
+              <ArticleCard key={a.id} article={a} priority={index === 0} />
             ))}
           </div>
         )}
