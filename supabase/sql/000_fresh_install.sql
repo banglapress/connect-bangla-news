@@ -92,8 +92,9 @@ create table if not exists public.user_roles (
   unique (user_id, role)
 );
 
-grant select on public.user_roles to authenticated;
-grant all on public.user_roles to service_role;
+revoke all privileges on table public.user_roles from anon, public, authenticated;
+grant select, insert, update, delete on table public.user_roles to authenticated;
+grant all privileges on table public.user_roles to service_role;
 alter table public.user_roles enable row level security;
 
 create or replace function public.has_role(_user_id uuid, _role public.app_role)
