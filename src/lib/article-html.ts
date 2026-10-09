@@ -73,7 +73,7 @@ export function renderArticleBody(value: string | null | undefined) {
     allowedAttributes: {
       a: ["href", "target", "rel"],
       span: ["style", "class", "data-lexical-text"],
-      img: ["src", "alt", "title"],
+      img: ["src", "alt", "title", "loading", "decoding", "width", "height"],
       p: ["style"],
       div: ["style"],
       figure: ["class"],
@@ -86,6 +86,10 @@ export function renderArticleBody(value: string | null | undefined) {
     allowedSchemes: ["http", "https"],
     allowProtocolRelative: false,
     transformTags: {
+      img: (_tagName, attribs) => ({
+        tagName: "img",
+        attribs: { ...attribs, loading: "lazy", decoding: "async" },
+      }),
       a: (_tagName, attribs) => ({
         tagName: "a",
         attribs: {
