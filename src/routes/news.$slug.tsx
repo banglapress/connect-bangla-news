@@ -4,7 +4,7 @@ import { getArticle } from "@/lib/news.functions";
 import { ArticleCard } from "@/components/article-card";
 import { categoryName } from "@/lib/categories";
 import { formatBanglaDateTime } from "@/lib/bangla";
-import { publicImageUrl } from "@/lib/image";
+import { publicImageUrl, responsiveImageSources } from "@/lib/image";
 import { renderArticleBody } from "@/lib/article-html";
 
 const articleQuery = (slug: string) =>
@@ -71,6 +71,7 @@ function ArticlePage() {
   const { data } = useSuspenseQuery(articleQuery(slug));
   const article = data.article!;
   const image = publicImageUrl(article.image_url);
+  const responsiveImage = responsiveImageSources(article.image_url);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -107,7 +108,9 @@ function ArticlePage() {
           {image ? (
             <figure className="mt-6">
               <img
-                src={image}
+                src={responsiveImage?.src ?? image}
+                srcSet={responsiveImage?.srcSet}
+                sizes="(max-width: 768px) 100vw, 800px"
                 alt={article.image_caption ?? article.title}
                 width={1200}
                 height={675}
