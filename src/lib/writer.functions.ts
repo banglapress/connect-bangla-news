@@ -111,7 +111,7 @@ export const getWriterPage = createServerFn({ method: "GET" })
     const slug = decodeURIComponent(data.slug);
     const supabase = publicClient();
     const writerRes = await supabase.from("writers").select("id, name, slug, bio, photo_url, managed_by_desk").eq("slug", slug).maybeSingle();
-    const writer = (!writerRes.error ? writerRes.data : null) as Writer | null;
+    const writer = (!writerRes.error && writerRes.data ? { ...writerRes.data, email: null } : null) as Writer | null;
 
     const published = await supabase
       .from("articles")
