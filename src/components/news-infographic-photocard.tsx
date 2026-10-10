@@ -261,16 +261,16 @@ export function NewsInfographicPhotocard() {
   const displayHeadline = draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে";
   const headlineLength = displayHeadline.length;
   const headlineFontSize =
-    headlineLength > 72 ? 30 : headlineLength > 55 ? 34 : headlineLength > 38 ? 40 : 48;
+    headlineLength > 65 ? 34 : headlineLength > 50 ? 38 : headlineLength > 35 ? 42 : 48;
   const headlineCharsPerLine =
-    headlineFontSize <= 30 ? 45 : headlineFontSize <= 34 ? 40 : headlineFontSize <= 44 ? 35 : 29;
+    headlineFontSize <= 34 ? 44 : headlineFontSize <= 38 ? 39 : headlineFontSize <= 42 ? 34 : 29;
   const headlineLineEstimate = Math.max(
     1,
-    Math.min(3, Math.ceil(headlineLength / headlineCharsPerLine)),
+    Math.min(2, Math.ceil(headlineLength / headlineCharsPerLine)),
   );
   const summaryTop = Math.min(
-    438,
-    285 + headlineLineEstimate * headlineFontSize * 1.6 + 12,
+    410,
+    260 + headlineLineEstimate * headlineFontSize * 1.5 + 16,
   );
   const cardStyle: CSSProperties = {
     width: 1080,
@@ -386,11 +386,11 @@ export function NewsInfographicPhotocard() {
                 </label>
                 <label className={labelClass}>
                   ইনফোগ্রাফিক্স হেডলাইন
-                  <textarea value={draft.headline} onChange={(event) => updateDraft({ headline: event.target.value })} rows={3} maxLength={90} className={fieldClass} />
+                  <textarea value={draft.headline} onChange={(event) => updateDraft({ headline: event.target.value })} rows={3} maxLength={80} className={fieldClass} />
                 </label>
                 <label className={labelClass}>
                   সংক্ষিপ্ত পরিচিতি
-                  <textarea value={draft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} rows={3} maxLength={140} className={fieldClass} />
+                  <textarea value={draft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} rows={3} maxLength={110} className={fieldClass} />
                 </label>
 
                 <div className="space-y-3">
@@ -445,76 +445,76 @@ export function NewsInfographicPhotocard() {
               <div style={{ position: "absolute", inset: "12px 0 0 0", background: "linear-gradient(145deg, #F7F7F4 0%, #FFFFFF 60%, #F4F1EB 100%)" }} />
               <div style={{ position: "absolute", right: -90, top: 140, width: 300, height: 300, border: "2px solid #E5E3DC", borderRadius: "50%", opacity: 0.6 }} />
               <div style={{ position: "absolute", right: -35, top: 195, width: 190, height: 190, border: "2px solid #EDE9E0", borderRadius: "50%", opacity: 0.8 }} />
-              <div style={{ position: "absolute", left: 60, top: 132, right: 60, height: 86, display: "flex", alignItems: "center", justifyContent: "flex-start", zIndex: 2 }}>
-                <img src="/logo.png" alt="The Connect" crossOrigin="anonymous" style={{ width: 190, maxHeight: 78, objectFit: "contain", objectPosition: "left center", display: "block" }} />
+              <div style={{ position: "absolute", left: 60, top: 78, right: 60, height: 122, display: "flex", alignItems: "center", justifyContent: "flex-start", zIndex: 2 }}>
+                <img src="/logo.png" alt="The Connect" crossOrigin="anonymous" style={{ width: 200, height: "auto", maxHeight: "none", display: "block", flexShrink: 0 }} />
               </div>
 
-              <div style={{ position: "absolute", left: 68, top: 246, zIndex: 2, color: "#E95319", fontSize: 23, lineHeight: 1.4, fontWeight: 700, letterSpacing: 0.4 }}>
+              <div style={{ position: "absolute", left: 68, top: 220, zIndex: 2, color: "#E95319", fontSize: 25, lineHeight: 1.5, fontWeight: 700, letterSpacing: 0 }}>
                 {draft?.kicker || "সংক্ষেপে"}
               </div>
 
-              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.6, letterSpacing: 0, overflowWrap: "anywhere" }}>
+              <h1 style={{ position: "absolute", left: 64, right: 64, top: 260, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.5, letterSpacing: 0, overflowWrap: "anywhere" }}>
                 {draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে"}
               </h1>
 
-              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 24, fontWeight: 500, lineHeight: 1.7, overflowWrap: "anywhere" }}>
+              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 27, fontWeight: 500, lineHeight: 1.55, overflowWrap: "anywhere" }}>
                 {draft?.summary || "নিউজের বিস্তারিত দিন, AI মূল তথ্য ও সংক্ষিপ্ত ব্যাখ্যা সাজিয়ে দেবে।"}
               </p>
 
-              <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ position: "absolute", left: 64, right: 64, top: 500, height: 230, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "20px 30px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 55 ? 23 : draft.featured_fact.length > 35 ? 26 : 30) : (draft.featured_fact.length > 60 ? 27 : draft.featured_fact.length > 40 ? 31 : 36), fontWeight: 800, lineHeight: 1.65, overflowWrap: "anywhere" }}>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 55 ? 28 : draft.featured_fact.length > 35 ? 32 : 36) : (draft.featured_fact.length > 60 ? 30 : draft.featured_fact.length > 40 ? 36 : 42), fontWeight: 800, lineHeight: 1.5, overflowWrap: "anywhere" }}>
                       {draft.featured_fact}
                     </div>
                     {draft.featured_fact_detail ? (
-                      <div style={{ marginTop: 4, color: "#D4D8D2", fontSize: 16, lineHeight: 1.7, overflowWrap: "anywhere" }}>
+                      <div style={{ marginTop: 6, color: "#D4D8D2", fontSize: 20, lineHeight: 1.55, overflowWrap: "anywhere" }}>
                         {draft.featured_fact_detail}
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.7, fontWeight: 600, overflowWrap: "anywhere" }}>
+                  <div style={{ color: "#555A56", fontSize: 30, lineHeight: 1.55, fontWeight: 600, overflowWrap: "anywhere" }}>
                     গুরুত্বপূর্ণ তথ্য এখানে তুলে ধরা হবে।
                   </div>
                 )}
               </div>
 
-              <div style={{ position: "absolute", left: 66, right: 66, top: 760, zIndex: 2 }}>
+              <div style={{ position: "absolute", left: 66, right: 66, top: 748, zIndex: 2 }}>
                 {(draft?.points || emptyDraft.points).map((point, index) => (
-                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 116, padding: "5px 0 5px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
+                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 122, padding: "4px 0 4px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
                     <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: index === 0 ? "#FF5A1A" : "#E9E7DF", color: index === 0 ? "#FFFFFF" : "#3C403B", fontSize: 17, fontWeight: 800 }}>
                       {["১", "২", "৩"][index]}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 20, lineHeight: 1.65, fontWeight: 800, color: "#222620", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 3, fontSize: 16, lineHeight: 1.7, color: "#686D66", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 25, lineHeight: 1.4, fontWeight: 800, color: "#222620", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 3, fontSize: 19, lineHeight: 1.5, color: "#686D66", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "17px 23px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
-                <div style={{ margin: 0, color: "#30342F", fontSize: 20, lineHeight: 1.7, fontWeight: 700, overflowWrap: "anywhere" }}>
+              <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "13px 22px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
+                <div style={{ margin: 0, color: "#30342F", fontSize: 25, lineHeight: 1.5, fontWeight: 700, overflowWrap: "anywhere" }}>
                   {draft?.takeaway || "সংবাদটি থেকে সবচেয়ে গুরুত্বপূর্ণ বার্তা এখানে আসবে।"}
                 </div>
               </div>
 
-              <div style={{ position: "absolute", left: 64, right: 64, top: 1272, height: 2, background: "#DCDAD2", zIndex: 2 }} />
+              <div style={{ position: "absolute", left: 64, right: 64, top: 1262, height: 2, background: "#DCDAD2", zIndex: 2 }} />
 
               {source.trim() ? (
-                <div style={{ position: "absolute", left: 66, top: 1290, zIndex: 2, width: 500, color: "#777B73", fontSize: 15, lineHeight: 1.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div style={{ position: "absolute", left: 66, top: 1277, zIndex: 2, width: 540, color: "#686D66", fontSize: 18, lineHeight: 1.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {"তথ্যসূত্র: " + source.trim()}
                 </div>
               ) : null}
 
-              <div style={{ position: "absolute", right: 66, top: 1282, zIndex: 2, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#626761", fontSize: 15, fontWeight: 600 }}>
-                  <div style={{ width: 31, height: 31, borderRadius: 8, background: "#1877F2", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif", fontSize: 26, fontWeight: 800 }}>f</div>
+              <div style={{ position: "absolute", right: 64, top: 1270, zIndex: 2, display: "flex", alignItems: "center", gap: 16, height: 42 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#4F554F", fontSize: 17, lineHeight: 1.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 9, background: "#1877F2", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif", fontSize: 29, fontWeight: 800 }}>f</div>
                   <span>theconnectbd</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#626761", fontSize: 15, fontWeight: 600 }}>
-                  <div style={{ width: 34, height: 25, borderRadius: 7, background: "#FF0033", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>▶</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#4F554F", fontSize: 17, lineHeight: 1.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ width: 40, height: 30, flexShrink: 0, borderRadius: 8, background: "#FF0033", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>▶</div>
                   <span>theconnectbd</span>
                 </div>
               </div>
