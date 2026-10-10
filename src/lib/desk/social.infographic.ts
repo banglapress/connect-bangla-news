@@ -127,9 +127,11 @@ export const generateInfographicContent = createServerFn({ method: "POST" })
 
     const generated = await generateGeminiStructuredJson(prompt, INFOGRAPHIC_JSON_SCHEMA, {
       timeoutMs: 75000,
-      maxOutputTokens: 3000,
+      maxOutputTokens: 2000,
       thinkingLevel: "low",
       maxAttempts: 2,
+      // Infographic content is short structured copy; use the lower-cost Flash-Lite model.
+      model: "gemini-3.5-flash-lite",
     });
     const generatedFields = generated.json as Record<string, unknown>;
     const normalizedFields = {
