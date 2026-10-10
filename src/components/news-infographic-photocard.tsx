@@ -261,7 +261,7 @@ export function NewsInfographicPhotocard() {
   const displayHeadline = draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে";
   const headlineLength = displayHeadline.length;
   const headlineFontSize =
-    headlineLength > 65 ? 34 : headlineLength > 50 ? 38 : headlineLength > 35 ? 42 : 48;
+    headlineLength > 65 ? 36 : headlineLength > 50 ? 42 : headlineLength > 35 ? 48 : 54;
   const headlineCharsPerLine =
     headlineFontSize <= 34 ? 44 : headlineFontSize <= 38 ? 39 : headlineFontSize <= 42 ? 34 : 29;
   const headlineLineEstimate = Math.max(
@@ -464,7 +464,7 @@ export function NewsInfographicPhotocard() {
               <div style={{ position: "absolute", left: 64, right: 64, top: 500, height: 230, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "20px 30px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 55 ? 28 : draft.featured_fact.length > 35 ? 32 : 36) : (draft.featured_fact.length > 60 ? 30 : draft.featured_fact.length > 40 ? 36 : 42), fontWeight: 800, lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 55 ? 36 : draft.featured_fact.length > 35 ? 40 : 44) : (draft.featured_fact.length > 60 ? 38 : draft.featured_fact.length > 40 ? 42 : 48), fontWeight: 800, lineHeight: 1.5, overflowWrap: "anywhere" }}>
                       {draft.featured_fact}
                     </div>
                     {draft.featured_fact_detail ? (
