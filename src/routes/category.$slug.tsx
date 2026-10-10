@@ -47,9 +47,9 @@ function CategoryPage() {
   const name = data.category?.name ?? categoryName(slug);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="section-rule mb-6 pb-1">
-        <h1 className="font-serif text-3xl font-bold">{name}</h1>
+    <div className="mx-auto max-w-7xl px-4 py-7 md:py-10">
+      <div className="mb-7 flex items-end justify-between border-b-2 border-foreground pb-3">
+        <div><p className="mb-1 text-xs font-semibold tracking-wide text-primary">বিভাগ অনুযায়ী খবর</p><h1 className="font-serif text-3xl font-bold md:text-4xl">{name}</h1></div>
       </div>
 
       {data.articles.length === 0 ? (
@@ -60,7 +60,7 @@ function CategoryPage() {
           </Link>
         </p>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {data.articles.map((a) => (
             <ArticleCard key={a.id} article={a} />
           ))}
