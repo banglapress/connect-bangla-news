@@ -146,7 +146,7 @@ export const getArticle = createServerFn({ method: "GET" })
     return withPublicCache(`article:${key}`, async () => {
       const supabase = publicClient();
       const article = await findArticle(supabase, key);
-      if (!article) return { article: null, related: [] as ArticleCard[], category: null };
+      if (!article) return { article: null, related: [] as ArticleCard[], latest: [] as ArticleCard[], category: null };
       const [relatedRows, latestRows, categories] = await Promise.all([
         selectPublished(supabase, { category: article.category_slug, limit: 12 }),
         selectPublished(supabase, { limit: 20 }),
