@@ -62,9 +62,6 @@ function Home() {
   const lead = articles.find((a) => a.is_lead) ?? articles[0]!;
   const featured = articles.filter((a) => a.id !== lead.id && a.is_featured).slice(0, 4);
   const usedIds = new Set([lead.id, ...featured.map((a) => a.id)]);
-  const latest = articles.filter((a) => !usedIds.has(a.id)).slice(0, 8);
-  latest.forEach((a) => usedIds.add(a.id));
-
   const categorySections = CATEGORIES.map((cat) => {
     const items = articles.filter((a) => a.category_slug === cat.slug && !usedIds.has(a.id)).slice(0, 3);
     items.forEach((a) => usedIds.add(a.id));
@@ -100,18 +97,6 @@ function Home() {
           )}
         </aside>
       </section>
-
-      {latest.length > 0 && (
-        <section className="mt-7 border-b border-border pb-7">
-          <div className="mb-4 flex items-end justify-between border-b-2 border-foreground pb-2">
-            <h2 className="font-serif text-xl font-bold md:text-2xl">সর্বশেষ খবর</h2>
-            <span className="text-xs text-muted-foreground">সর্বশেষ প্রকাশিত</span>
-          </div>
-          <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
-            {latest.map((a) => <ArticleCard key={a.id} article={a} variant="compact" />)}
-          </div>
-        </section>
-      )}
 
       {categorySections.map(({ cat, items }) => (
         <section key={cat.slug} className="mt-8 md:mt-10">
