@@ -9,31 +9,30 @@ import { uploadCardImage } from "@/lib/desk/social.helpers";
 const infographicContentSchema = z.object({
   kicker: z.string().min(1).max(90),
   headline: z.string().min(4).max(90),
-  summary: z.string().min(8).max(320),
-  featured_fact: z.string().min(8).max(100),
-  featured_fact_detail: z.string().max(140),
+  summary: z.string().min(8).max(140),
+  featured_fact: z.string().min(8).max(70),
+  featured_fact_detail: z.string().max(80),
   points: z
     .array(
       z.object({
-        heading: z.string().min(2).max(80),
-        detail: z.string().min(6).max(220),
+        heading: z.string().min(2).max(45),
+        detail: z.string().min(6).max(100),
       }),
     )
     .length(3),
-  takeaway: z.string().min(8).max(260),
+  takeaway: z.string().min(8).max(100),
   caption: z.string().min(1).max(3000),
 });
 
-function fitGeneratedHighlight(value: string, maxLength = 100): string {
+function fitGeneratedText(value: string, maxLength: number): string {
   const normalized = value.replace(/\s+/gu, " ").trim();
   if (normalized.length <= maxLength) return normalized;
 
-  // Prefer a complete sentence, then fall back to a word-boundary truncation.
-  const sentences = normalized.match(/[^।.!?]+[।.!?]?/gu) ?? [normalized];
-  const completeSentence = sentences
-    .map((sentence) => sentence.trim())
-    .find((sentence) => sentence.length >= 8 && sentence.length <= maxLength && /[।.!?]$/u.test(sentence));
-  if (completeSentence) return completeSentence;
+  // Prefer the opening complete sentence when it fits. Otherwise shorten at a word boundary.
+  const firstSentence = (normalized.match(/[^।.!?]+[।.!?]?/gu) ?? [normalized])[0]?.trim() ?? "";
+  if (firstSentence.length >= 8 && firstSentence.length <= maxLength && /[।.!?]$/u.test(firstSentence)) {
+    return firstSentence;
+  }
 
   const candidate = normalized.slice(0, maxLength - 1);
   const boundary = candidate.lastIndexOf(" ");
@@ -110,7 +109,9 @@ export const generateInfographicContent = createServerFn({ method: "POST" })
       "featured_fact-এ নিউজের সবচেয়ে তাৎপর্যপূর্ণ একটি তথ্য, ঘটনা, সিদ্ধান্ত বা পরিবর্তনকে একটি সংক্ষিপ্ত পূর্ণ বাক্যে তুলে ধরুন। এটি সংখ্যা হতে হবে না। অবশ্যই ৭০ অক্ষরের মধ্যে রাখুন; অপ্রয়োজনীয় ব্যাখ্যা বাদ দিন। শিরোনাম হুবহু পুনরাবৃত্তি নয়, নতুন দাবি নয়, এবং এই ফিল্ড ফাঁকা রাখবেন না।",
       "featured_fact_detail-এ প্রয়োজন হলে সহায়ক ব্যাখ্যা বা প্রেক্ষাপট দিন; অতিরিক্ত তথ্য যোগ করার মতো ভিত্তি না থাকলে খালি স্ট্রিং দিন।",
       "points-এ ঠিক তিনটি আলাদা, ছোট, যাচাইযোগ্য মূল তথ্য দিন। একই কথা তিনভাবে লিখবেন না।",
-      "summary একটি ছোট পরিচিতি, takeaway একটি সতর্ক সংক্ষিপ্ত উপসংহার হবে; নতুন দাবি যোগ করবেন না।",
+      "summary ১৪০ অক্ষরের মধ্যে রাখুন; অল্প কথায় প্রেক্ষাপট জানান।",
+      "featured_fact_detail ৮০ অক্ষরের মধ্যে, points-এর প্রতিটি heading ৪৫ অক্ষরের মধ্যে ও detail ১০০ অক্ষরের মধ্যে লিখুন।",
+      "takeaway ১০০ অক্ষরের মধ্যে রাখুন; নতুন দাবি যোগ করবেন না।",
       "ভাষা স্বাভাবিক বাংলাদেশি বাংলা (bn-BD)। সহজ শব্দ, ছোট বাক্য, কম শব্দ। ক্লিকবেইট বা অতিরঞ্জন নয়।",
       "kicker ছোট একটি বিষয়-লেবেল হবে, যেমন অর্থনীতি, জ্বালানি, জনজীবন, আন্তর্জাতিক, প্রযুক্তি।",
       "caption-এ নিউজের শিরোনাম, সংক্ষিপ্ত summary এবং উৎস থাকলে সেটি যুক্ত করুন। ৩টি পর্যন্ত সম্পর্কিত হ্যাশট্যাগ ব্যবহার করা যায়।",
@@ -132,8 +133,37 @@ export const generateInfographicContent = createServerFn({ method: "POST" })
     const generatedFields = generated.json as Record<string, unknown>;
     const normalizedFields = {
       ...generatedFields,
+      ...(typeof generatedFields.headline === "string"
+        ? { headline: fitGeneratedText(generatedFields.headline, 90) }
+        : {}),
+      ...(typeof generatedFields.summary === "string"
+        ? { summary: fitGeneratedText(generatedFields.summary, 140) }
+        : {}),
       ...(typeof generatedFields.featured_fact === "string"
-        ? { featured_fact: fitGeneratedHighlight(generatedFields.featured_fact, 100) }
+        ? { featured_fact: fitGeneratedText(generatedFields.featured_fact, 70) }
+        : {}),
+      ...(typeof generatedFields.featured_fact_detail === "string"
+        ? { featured_fact_detail: fitGeneratedText(generatedFields.featured_fact_detail, 80) }
+        : {}),
+      ...(typeof generatedFields.takeaway === "string"
+        ? { takeaway: fitGeneratedText(generatedFields.takeaway, 100) }
+        : {}),
+      ...(Array.isArray(generatedFields.points)
+        ? {
+            points: generatedFields.points.map((point) => {
+              if (!point || typeof point !== "object" || Array.isArray(point)) return point;
+              const fields = point as Record<string, unknown>;
+              return {
+                ...fields,
+                ...(typeof fields.heading === "string"
+                  ? { heading: fitGeneratedText(fields.heading, 45) }
+                  : {}),
+                ...(typeof fields.detail === "string"
+                  ? { detail: fitGeneratedText(fields.detail, 100) }
+                  : {}),
+              };
+            }),
+          }
         : {}),
     };
     const content = infographicContentSchema.parse(normalizedFields);
