@@ -56,7 +56,7 @@ export const listAllArticles = createServerFn({ method: "GET" })
     await assertDeskStaff(context as { supabase: any; userId: string });
     const { data, error } = await context.supabase
       .from("articles")
-      .select("id, title, slug, category_slug, status, published_at, updated_at, author_name")
+      .select("id, title, slug, category_slug, status, published_at, updated_at, author_name, is_lead, is_featured, tags")
       .order("updated_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
@@ -319,6 +319,41 @@ export const updateArticle = createServerFn({ method: "POST" })
     }, id);
     await syncDeskStoryPublication(context.supabase, id, fields.status);
     return saved;
+  });
+
+export const updateArticleQuickly = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        category_slug: z.string().min(1).optional(),
+        author_name: z.string().trim().min(1).optional(),
+        is_lead: z.boolean().optional(),
+        is_featured: z.boolean().optional(),
+        tags: z.array(z.string()).optional(),
+      })
+      .refine((data) => Object.keys(data).some((key) => key !== "id"), {
+        message: "কুইক এডিটের জন্য অন্তত একটি তথ্য দিন",
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertDeskStaff(context as { supabase: any; userId: string });
+    const { id, ...fields } = data;
+    const patch: Record<string, unknown> = {};
+
+    // Only metadata fields are accepted here; article text and image fields are never written.
+    if (fields.category_slug !== undefined) patch.category_slug = fields.category_slug;
+    if (fields.author_name !== undefined) patch.author_name = fields.author_name;
+    if (fields.is_lead !== undefined) patch.is_lead = fields.is_lead;
+    if (fields.is_featured !== undefined) patch.is_featured = fields.is_featured;
+    if (fields.tags !== undefined) patch.tags = fields.tags.map((tag) => tag.trim()).filter(Boolean);
+    patch.updated_at = new Date().toISOString();
+
+    const { error } = await context.supabase.from("articles").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const deleteArticle = createServerFn({ method: "POST" })
