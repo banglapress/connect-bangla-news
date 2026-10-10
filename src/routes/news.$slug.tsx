@@ -165,6 +165,15 @@ function ArticlePage() {
           ) : (
             data.related.map((a) => <ArticleCard key={a.id} article={a} variant="list" />)
           )}
+
+          <section className="mt-8 border-t border-border pt-5">
+            <h2 className="mb-2 border-b-2 border-foreground pb-2 font-serif text-xl font-bold">সর্বশেষ খবর</h2>
+            {data.latest.length === 0 ? (
+              <p className="py-3 text-sm text-muted-foreground">নতুন কোনো খবর নেই।</p>
+            ) : (
+              data.latest.map((a) => <ArticleCard key={a.id} article={a} variant="list" />)
+            )}
+          </section>
         </aside>
       </div>
     </div>
