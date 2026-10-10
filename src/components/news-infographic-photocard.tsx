@@ -483,15 +483,15 @@ export function NewsInfographicPhotocard() {
                 )}
               </div>
 
-              <div style={{ position: "absolute", left: 66, right: 66, top: 770, zIndex: 2 }}>
+              <div style={{ position: "absolute", left: 66, right: 66, top: 760, zIndex: 2 }}>
                 {(draft?.points || emptyDraft.points).map((point, index) => (
-                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 110, padding: "8px 0 7px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
+                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 116, padding: "5px 0 5px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
                     <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: index === 0 ? "#FF5A1A" : "#E9E7DF", color: index === 0 ? "#FFFFFF" : "#3C403B", fontSize: 17, fontWeight: 800 }}>
                       {["১", "২", "৩"][index]}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 20, lineHeight: 1.5, fontWeight: 800, color: "#222620", maxHeight: 38, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 3, fontSize: 17, lineHeight: 1.5, color: "#686D66", maxHeight: 54, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 20, lineHeight: 1.5, fontWeight: 800, color: "#222620", maxHeight: 42, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 3, fontSize: 17, lineHeight: 1.5, color: "#686D66", maxHeight: 61, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
