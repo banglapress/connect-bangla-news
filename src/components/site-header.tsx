@@ -48,7 +48,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-foreground/90 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
+    <header className="sticky top-0 z-40 border-t-4 border-primary border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/90">
       <div className="mx-auto max-w-7xl px-4">
         <div className="flex items-center justify-between border-b border-border py-2 text-xs text-muted-foreground">
           <span>{hydrated ? formatBanglaFullDate(new Date()) : ""}</span>
@@ -64,8 +64,8 @@ export function SiteHeader() {
             <Link to="/auth" className="hover:text-primary">সম্পাদকীয় প্রবেশ</Link>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 py-3 md:py-4">
-          <button type="button" aria-label="মেনু" className="md:hidden" onClick={() => setOpen((v) => !v)}>
+        <div className="flex items-center justify-between gap-3 py-3 md:py-5">
+          <button type="button" aria-label="মেনু" className="rounded-md p-1 transition-colors hover:bg-secondary md:hidden" onClick={() => setOpen((v) => !v)}>
             {open ? <X className="size-6" /> : <Menu className="size-6" />}
           </button>
           <Link to="/" className="mx-auto text-center md:mx-0">
@@ -78,10 +78,10 @@ export function SiteHeader() {
           <span className="w-6 md:hidden" />
         </div>
       </div>
-      <nav className="border-t border-border bg-secondary/90">
-        <div className="mx-auto hidden max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-sm font-medium md:flex">
+      <nav className="border-t border-foreground/10 bg-foreground text-background">
+        <div className="mx-auto hidden max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm font-semibold md:flex">
           {items.map((c) => (
-            <Link key={c.slug} to="/$section" params={{ section: c.slug }} activeProps={{ className: "text-primary" }} className="hover:text-primary">{c.name}</Link>
+            <Link key={c.slug} to="/$section" params={{ section: c.slug }} activeProps={{ className: "text-primary" }} className="transition-colors hover:text-primary">{c.name}</Link>
           ))}
         </div>
         {open && (
@@ -90,9 +90,9 @@ export function SiteHeader() {
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="খবর খুঁজুন" className="flex-1 border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
               <button type="submit" className="bg-primary px-3 text-sm text-primary-foreground">খুঁজুন</button>
             </form>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-sm">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-background p-4 text-sm text-foreground">
               {items.map((c) => (
-                <Link key={c.slug} to="/$section" params={{ section: c.slug }} onClick={() => setOpen(false)} className="border-b border-border pb-1 hover:text-primary">{c.name}</Link>
+                <Link key={c.slug} to="/$section" params={{ section: c.slug }} onClick={() => setOpen(false)} className="border-b border-border pb-1 transition-colors hover:text-primary">{c.name}</Link>
               ))}
             </div>
           </div>
