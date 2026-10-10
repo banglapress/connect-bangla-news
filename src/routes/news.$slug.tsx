@@ -95,8 +95,8 @@ function ArticlePage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="grid gap-10 md:grid-cols-[minmax(0,2fr)_1fr]">
+    <div className="mx-auto max-w-7xl px-4 py-6 md:py-10">
+      <div className="grid gap-10 md:grid-cols-[minmax(0,760px)_minmax(250px,1fr)] md:gap-14">
         <article>
           <Link
             to="/category/$slug"
@@ -105,18 +105,18 @@ function ArticlePage() {
           >
             {data.category?.name ?? categoryName(article.category_slug)}
           </Link>
-          <h1 className="mt-2 font-serif text-3xl font-bold leading-tight md:text-4xl">
+          <h1 className="mt-3 max-w-4xl font-serif text-3xl font-bold leading-[1.25] tracking-tight md:text-5xl">
             {article.title}
           </h1>
           {article.excerpt ? (
-            <p className="mt-3 text-lg leading-relaxed text-muted-foreground">{article.excerpt}</p>
+            <p className="mt-4 max-w-3xl text-lg leading-relaxed text-muted-foreground md:text-xl">{article.excerpt}</p>
           ) : null}
-          <p className="mt-4 border-y border-border py-2 text-sm text-muted-foreground">
+          <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 border-y border-border py-3 text-sm text-muted-foreground">
             {article.author_name} · {formatBanglaDateTime(article.published_at)}
           </p>
 
           {image ? (
-            <figure className="mt-6">
+            <figure className="mt-7">
               <img
                 src={responsiveImage?.src ?? image}
                 srcSet={responsiveImage?.srcSet}
@@ -127,7 +127,7 @@ function ArticlePage() {
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
-                className="aspect-video w-full object-cover"
+                className="aspect-video w-full rounded-sm object-cover"
               />
               {article.image_caption ? (
                 <figcaption className="mt-1 text-xs text-muted-foreground">
@@ -138,7 +138,7 @@ function ArticlePage() {
           ) : null}
 
           <div
-            className="article-body mt-6"
+            className="article-body mt-7 md:mt-9"
             dangerouslySetInnerHTML={{ __html: renderArticleBody(article.body) }}
           />
 
@@ -158,8 +158,8 @@ function ArticlePage() {
           />
         </article>
 
-        <aside>
-          <h2 className="section-rule pb-1 font-serif text-lg font-bold">সম্পর্কিত খবর</h2>
+        <aside className="md:sticky md:top-40 md:self-start">
+          <h2 className="mb-2 border-b-2 border-foreground pb-2 font-serif text-xl font-bold">সম্পর্কিত খবর</h2>
           {data.related.length === 0 ? (
             <p className="py-3 text-sm text-muted-foreground">সম্পর্কিত কোনো খবর নেই।</p>
           ) : (
