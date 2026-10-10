@@ -467,61 +467,58 @@ export function NewsInfographicPhotocard() {
               <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact.length > 76 ? 28 : draft.featured_fact.length > 48 ? 32 : draft.featured_fact.length > 30 ? 38 : 46, fontWeight: 800, lineHeight: 1.4, maxHeight: draft.featured_fact_detail ? 90 : 148, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 70 ? 25 : draft.featured_fact.length > 48 ? 27 : draft.featured_fact.length > 30 ? 29 : 34) : (draft.featured_fact.length > 76 ? 28 : draft.featured_fact.length > 48 ? 31 : draft.featured_fact.length > 30 ? 35 : 42), fontWeight: 800, lineHeight: 1.5, maxHeight: draft.featured_fact_detail ? 92 : 154, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                       {draft.featured_fact}
                     </div>
                     {draft.featured_fact_detail ? (
-                      <div style={{ marginTop: 8, color: "#D4D8D2", fontSize: 20, lineHeight: 1.4, maxHeight: 56, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                      <div style={{ marginTop: 5, color: "#D4D8D2", fontSize: 18, lineHeight: 1.5, maxHeight: 56, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                         {draft.featured_fact_detail}
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.4, fontWeight: 600, overflowWrap: "anywhere" }}>
+                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.5, fontWeight: 600, overflowWrap: "anywhere" }}>
                     গুরুত্বপূর্ণ তথ্য এখানে তুলে ধরা হবে।
                   </div>
                 )}
               </div>
 
               <div style={{ position: "absolute", left: 66, right: 66, top: 770, zIndex: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #E2E0D8", paddingBottom: 14 }}>
-                  <span style={{ color: "#242823", fontSize: 21, fontWeight: 800, letterSpacing: 0.7 }}>গুরুত্বপূর্ণ তথ্য</span>
-                  <span style={{ color: "#96988F", fontSize: 15, fontWeight: 700 }}>০১ — ০৩</span>
-                </div>
                 {(draft?.points || emptyDraft.points).map((point, index) => (
-                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 85, padding: "6px 0 5px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
+                  <div key={index} style={{ display: "flex", gap: 18, alignItems: "flex-start", minHeight: 110, padding: "8px 0 7px", borderBottom: index < 2 ? "1px solid #E7E5DE" : "none", boxSizing: "border-box" }}>
                     <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: index === 0 ? "#FF5A1A" : "#E9E7DF", color: index === 0 ? "#FFFFFF" : "#3C403B", fontSize: 17, fontWeight: 800 }}>
-                      0{index + 1}
+                      {["১", "২", "৩"][index]}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 21, lineHeight: 1.4, fontWeight: 800, color: "#222620", maxHeight: 32, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 4, fontSize: 17, lineHeight: 1.4, color: "#686D66", maxHeight: 48, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 20, lineHeight: 1.5, fontWeight: 800, color: "#222620", maxHeight: 38, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 3, fontSize: 17, lineHeight: 1.5, color: "#686D66", maxHeight: 54, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "17px 23px", boxSizing: "border-box" }}>
-                <div style={{ color: "#E95319", fontSize: 16, lineHeight: 1.4, fontWeight: 800, letterSpacing: 1.2 }}>মূল বার্তা</div>
-                <div style={{ marginTop: 4, color: "#30342F", fontSize: 22, lineHeight: 1.4, fontWeight: 700, maxHeight: 62, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+              <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "17px 23px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
+                <div style={{ margin: 0, color: "#30342F", fontSize: 22, lineHeight: 1.5, fontWeight: 700, maxHeight: 74, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
                   {draft?.takeaway || "সংবাদটি থেকে সবচেয়ে গুরুত্বপূর্ণ বার্তা এখানে আসবে।"}
                 </div>
               </div>
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 1272, height: 2, background: "#DCDAD2", zIndex: 2 }} />
 
-              <div style={{ position: "absolute", left: 66, top: 1290, zIndex: 2, width: 500, color: "#777B73", fontSize: 15, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {source.trim() ? "তথ্যসূত্র: " + source.trim() : "তথ্যসূত্র: প্রদত্ত সংবাদ"}
-              </div>
+              {source.trim() ? (
+                <div style={{ position: "absolute", left: 66, top: 1290, zIndex: 2, width: 500, color: "#777B73", fontSize: 15, lineHeight: 1.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {"তথ্যসূত্র: " + source.trim()}
+                </div>
+              ) : null}
 
               <div style={{ position: "absolute", right: 66, top: 1282, zIndex: 2, display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#626761", fontSize: 15, fontWeight: 600 }}>
                   <div style={{ width: 31, height: 31, borderRadius: 8, background: "#1877F2", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif", fontSize: 26, fontWeight: 800 }}>f</div>
-                  <span>Facebook</span>
+                  <span>theconnectbd</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#626761", fontSize: 15, fontWeight: 600 }}>
                   <div style={{ width: 34, height: 25, borderRadius: 7, background: "#FF0033", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>▶</div>
-                  <span>YouTube</span>
+                  <span>theconnectbd</span>
                 </div>
               </div>
 
