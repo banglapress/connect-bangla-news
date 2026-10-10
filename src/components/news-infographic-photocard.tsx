@@ -261,16 +261,16 @@ export function NewsInfographicPhotocard() {
   const displayHeadline = draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে";
   const headlineLength = displayHeadline.length;
   const headlineFontSize =
-    headlineLength > 72 ? 34 : headlineLength > 55 ? 38 : headlineLength > 38 ? 44 : 52;
+    headlineLength > 72 ? 30 : headlineLength > 55 ? 34 : headlineLength > 38 ? 40 : 48;
   const headlineCharsPerLine =
-    headlineFontSize <= 38 ? 43 : headlineFontSize <= 44 ? 35 : 29;
+    headlineFontSize <= 30 ? 45 : headlineFontSize <= 34 ? 40 : headlineFontSize <= 44 ? 35 : 29;
   const headlineLineEstimate = Math.max(
     1,
     Math.min(3, Math.ceil(headlineLength / headlineCharsPerLine)),
   );
   const summaryTop = Math.min(
     438,
-    285 + headlineLineEstimate * headlineFontSize * 1.42 + 12,
+    285 + headlineLineEstimate * headlineFontSize * 1.6 + 12,
   );
   const cardStyle: CSSProperties = {
     width: 1080,
@@ -390,17 +390,17 @@ export function NewsInfographicPhotocard() {
                 </label>
                 <label className={labelClass}>
                   সংক্ষিপ্ত পরিচিতি
-                  <textarea value={draft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} rows={3} maxLength={320} className={fieldClass} />
+                  <textarea value={draft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} rows={3} maxLength={140} className={fieldClass} />
                 </label>
 
                 <div className="space-y-3">
                   <label className={labelClass}>
                     গুরুত্বপূর্ণ তথ্য / হাইলাইট (ঐচ্ছিক)
-                    <textarea value={draft.featured_fact} onChange={(event) => updateDraft({ featured_fact: event.target.value })} rows={3} maxLength={100} placeholder="সংখ্যা না হলেও চলবে—নিউজের সবচেয়ে তাৎপর্যপূর্ণ তথ্য" className={fieldClass} />
+                    <textarea value={draft.featured_fact} onChange={(event) => updateDraft({ featured_fact: event.target.value })} rows={3} maxLength={70} placeholder="সংখ্যা না হলেও চলবে—নিউজের সবচেয়ে তাৎপর্যপূর্ণ তথ্য" className={fieldClass} />
                   </label>
                   <label className={labelClass}>
                     সহায়ক ব্যাখ্যা (ঐচ্ছিক)
-                    <textarea value={draft.featured_fact_detail} onChange={(event) => updateDraft({ featured_fact_detail: event.target.value })} rows={2} maxLength={140} placeholder="প্রয়োজনে এক লাইনের ব্যাখ্যা বা প্রেক্ষাপট" className={fieldClass} />
+                    <textarea value={draft.featured_fact_detail} onChange={(event) => updateDraft({ featured_fact_detail: event.target.value })} rows={2} maxLength={80} placeholder="প্রয়োজনে এক লাইনের ব্যাখ্যা বা প্রেক্ষাপট" className={fieldClass} />
                   </label>
                 </div>
 
@@ -409,15 +409,15 @@ export function NewsInfographicPhotocard() {
                   {draft.points.map((point, index) => (
                     <div key={index} className="space-y-2 rounded-lg border border-border p-3">
                       <p className="text-xs font-semibold text-primary">তথ্য {String(index + 1).padStart(2, "0")}</p>
-                      <input value={point.heading} onChange={(event) => updatePoint(index, { heading: event.target.value })} maxLength={80} className={fieldClass} aria-label={"তথ্য " + (index + 1) + " শিরোনাম"} />
-                      <textarea value={point.detail} onChange={(event) => updatePoint(index, { detail: event.target.value })} rows={2} maxLength={220} className={fieldClass} aria-label={"তথ্য " + (index + 1) + " বিবরণ"} />
+                      <input value={point.heading} onChange={(event) => updatePoint(index, { heading: event.target.value })} maxLength={45} className={fieldClass} aria-label={"তথ্য " + (index + 1) + " শিরোনাম"} />
+                      <textarea value={point.detail} onChange={(event) => updatePoint(index, { detail: event.target.value })} rows={2} maxLength={100} className={fieldClass} aria-label={"তথ্য " + (index + 1) + " বিবরণ"} />
                     </div>
                   ))}
                 </div>
 
                 <label className={labelClass}>
                   শেষ কথা / মূল বার্তা
-                  <textarea value={draft.takeaway} onChange={(event) => updateDraft({ takeaway: event.target.value })} rows={3} maxLength={260} className={fieldClass} />
+                  <textarea value={draft.takeaway} onChange={(event) => updateDraft({ takeaway: event.target.value })} rows={3} maxLength={100} className={fieldClass} />
                 </label>
                 <label className={labelClass}>
                   Facebook ক্যাপশন
@@ -445,39 +445,36 @@ export function NewsInfographicPhotocard() {
               <div style={{ position: "absolute", inset: "12px 0 0 0", background: "linear-gradient(145deg, #F7F7F4 0%, #FFFFFF 60%, #F4F1EB 100%)" }} />
               <div style={{ position: "absolute", right: -90, top: 140, width: 300, height: 300, border: "2px solid #E5E3DC", borderRadius: "50%", opacity: 0.6 }} />
               <div style={{ position: "absolute", right: -35, top: 195, width: 190, height: 190, border: "2px solid #EDE9E0", borderRadius: "50%", opacity: 0.8 }} />
-              <div style={{ position: "absolute", left: 60, top: 132, right: 60, height: 86, display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 2 }}>
+              <div style={{ position: "absolute", left: 60, top: 132, right: 60, height: 86, display: "flex", alignItems: "center", justifyContent: "flex-start", zIndex: 2 }}>
                 <img src="/logo.png" alt="The Connect" crossOrigin="anonymous" style={{ width: 190, maxHeight: 78, objectFit: "contain", objectPosition: "left center", display: "block" }} />
-                <div style={{ border: "1px solid #D9D8D1", borderRadius: 99, padding: "12px 18px", background: "rgba(255,255,255,0.84)", color: "#555A56", fontSize: 17, fontWeight: 700, letterSpacing: 1.2 }}>
-                  NEWS INFOGRAPHIC
-                </div>
               </div>
 
               <div style={{ position: "absolute", left: 68, top: 246, zIndex: 2, color: "#E95319", fontSize: 23, lineHeight: 1.4, fontWeight: 700, letterSpacing: 0.4 }}>
                 {draft?.kicker || "সংক্ষেপে"}
               </div>
 
-              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.42, letterSpacing: 0, maxHeight: headlineFontSize * 1.42 * 3, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+              <h1 style={{ position: "absolute", left: 64, right: 64, top: 285, margin: 0, zIndex: 2, color: "#171918", fontSize: headlineFontSize, fontWeight: 800, lineHeight: 1.6, letterSpacing: 0, overflowWrap: "anywhere" }}>
                 {draft?.headline || "নিউজের শিরোনাম এখানে দেখা যাবে"}
               </h1>
 
-              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 25, fontWeight: 500, lineHeight: 1.48, maxHeight: 80, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+              <p style={{ position: "absolute", left: 68, right: 68, top: summaryTop, margin: 0, zIndex: 2, color: "#626762", fontSize: 24, fontWeight: 500, lineHeight: 1.7, overflowWrap: "anywhere" }}>
                 {draft?.summary || "নিউজের বিস্তারিত দিন, AI মূল তথ্য ও সংক্ষিপ্ত ব্যাখ্যা সাজিয়ে দেবে।"}
               </p>
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 532, height: 206, zIndex: 2, overflow: "hidden", borderRadius: 24, background: draft?.featured_fact ? "#191D1A" : "#F0EDE5", color: draft?.featured_fact ? "#FFFFFF" : "#20231F", boxSizing: "border-box", padding: "25px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {draft?.featured_fact ? (
                   <>
-                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 70 ? 25 : draft.featured_fact.length > 48 ? 27 : draft.featured_fact.length > 30 ? 29 : 34) : (draft.featured_fact.length > 76 ? 28 : draft.featured_fact.length > 48 ? 31 : draft.featured_fact.length > 30 ? 35 : 42), fontWeight: 800, lineHeight: 1.5, maxHeight: draft.featured_fact_detail ? 92 : 154, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                    <div style={{ color: "#FFFFFF", fontSize: draft.featured_fact_detail ? (draft.featured_fact.length > 55 ? 23 : draft.featured_fact.length > 35 ? 26 : 30) : (draft.featured_fact.length > 60 ? 27 : draft.featured_fact.length > 40 ? 31 : 36), fontWeight: 800, lineHeight: 1.65, overflowWrap: "anywhere" }}>
                       {draft.featured_fact}
                     </div>
                     {draft.featured_fact_detail ? (
-                      <div style={{ marginTop: 5, color: "#D4D8D2", fontSize: 18, lineHeight: 1.5, maxHeight: 56, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                      <div style={{ marginTop: 4, color: "#D4D8D2", fontSize: 16, lineHeight: 1.7, overflowWrap: "anywhere" }}>
                         {draft.featured_fact_detail}
                       </div>
                     ) : null}
                   </>
                 ) : (
-                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.5, fontWeight: 600, overflowWrap: "anywhere" }}>
+                  <div style={{ color: "#555A56", fontSize: 27, lineHeight: 1.7, fontWeight: 600, overflowWrap: "anywhere" }}>
                     গুরুত্বপূর্ণ তথ্য এখানে তুলে ধরা হবে।
                   </div>
                 )}
@@ -490,15 +487,15 @@ export function NewsInfographicPhotocard() {
                       {["১", "২", "৩"][index]}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 20, lineHeight: 1.5, fontWeight: 800, color: "#222620", maxHeight: 42, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.heading}</div>
-                      <div style={{ marginTop: 3, fontSize: 17, lineHeight: 1.5, color: "#686D66", maxHeight: 61, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
+                      <div style={{ fontSize: 20, lineHeight: 1.65, fontWeight: 800, color: "#222620", overflowWrap: "anywhere" }}>{point.heading}</div>
+                      <div style={{ marginTop: 3, fontSize: 16, lineHeight: 1.7, color: "#686D66", overflowWrap: "anywhere" }}>{point.detail || "AI তৈরি করার পর এই তথ্য দেখা যাবে।"}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
               <div style={{ position: "absolute", left: 64, right: 64, top: 1120, height: 126, zIndex: 2, borderLeft: "8px solid #FF5A1A", borderRadius: "0 17px 17px 0", background: "#F0EDE5", padding: "17px 23px", boxSizing: "border-box", display: "flex", alignItems: "center" }}>
-                <div style={{ margin: 0, color: "#30342F", fontSize: 22, lineHeight: 1.5, fontWeight: 700, maxHeight: 74, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>
+                <div style={{ margin: 0, color: "#30342F", fontSize: 20, lineHeight: 1.7, fontWeight: 700, overflowWrap: "anywhere" }}>
                   {draft?.takeaway || "সংবাদটি থেকে সবচেয়ে গুরুত্বপূর্ণ বার্তা এখানে আসবে।"}
                 </div>
               </div>
