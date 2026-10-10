@@ -41,9 +41,9 @@ function SearchPage() {
   const { data } = useSuspenseQuery(resultsQuery(q));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="section-rule mb-6 pb-1">
-        <h1 className="font-serif text-2xl font-bold">
+    <div className="mx-auto max-w-7xl px-4 py-7 md:py-10">
+      <div className="mb-7 border-b-2 border-foreground pb-3">
+        <h1 className="font-serif text-2xl font-bold md:text-3xl">
           {q ? `“${q}” — ${toBanglaDigits(data.length)}টি ফল` : "খোঁজ"}
         </h1>
       </div>
@@ -52,7 +52,7 @@ function SearchPage() {
           {q ? "কোনো খবর পাওয়া যায়নি।" : "উপরের ঘরে লিখে খুঁজুন।"}
         </p>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((a) => (
             <ArticleCard key={a.id} article={a} />
           ))}
