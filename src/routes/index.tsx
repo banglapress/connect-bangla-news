@@ -68,17 +68,18 @@ function Home() {
   const lead = articles.find((a) => a.is_lead) ?? articles[0]!;
   const rest = articles.filter((a) => a.id !== lead.id);
   const secondary = rest.slice(0, 4);
-  const latest = rest.slice(0, 8);
+  const secondaryIds = new Set(secondary.map((article) => article.id));
+  const latest = rest.filter((article) => !secondaryIds.has(article.id)).slice(0, 8);
   const opinion = articles.filter((a) => a.category_slug === "opinion").slice(0, 4);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="sr-only">The Connect — বাংলা সংবাদ ও মতামত</h1>
 
-      <div className="grid gap-8 md:grid-cols-[2fr_1fr]">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1.8fr)_minmax(280px,0.8fr)]">
         <div>
           <ArticleCard article={lead} variant="lead" />
-          <div className="mt-8 grid gap-6 sm:grid-cols-2">
+          <div className="mt-8 grid gap-x-6 gap-y-7 sm:grid-cols-2">
             {secondary.map((a) => (
               <ArticleCard key={a.id} article={a} />
             ))}
@@ -86,7 +87,7 @@ function Home() {
         </div>
 
         <aside>
-          <h2 className="section-rule pb-1 font-serif text-lg font-bold">সর্বশেষ</h2>
+          <div className="mb-2 flex items-center justify-between border-b-2 border-foreground pb-2"><h2 className="font-serif text-xl font-bold">সর্বশেষ</h2><span className="text-xs text-muted-foreground">সর্বশেষ আপডেট</span></div>
           <div>
             {latest.map((a) => (
               <ArticleCard key={a.id} article={a} variant="list" />
@@ -94,7 +95,7 @@ function Home() {
           </div>
 
           {opinion.length > 0 && (
-            <div className="mt-8 bg-secondary p-4">
+            <div className="mt-8 rounded-sm border border-border bg-secondary/70 p-4">
               <h2 className="section-rule pb-1 font-serif text-lg font-bold">মতামত</h2>
               {opinion.map((a) => (
                 <ArticleCard key={a.id} article={a} variant="list" />
@@ -108,7 +109,7 @@ function Home() {
         const items = articles.filter((a) => a.category_slug === cat.slug).slice(0, 3);
         if (items.length === 0) return null;
         return (
-          <section key={cat.slug} className="mt-12">
+          <section key={cat.slug} className="mt-14">
             <div className="section-rule mb-4 flex items-baseline justify-between pb-1">
               <h2 className="font-serif text-xl font-bold">{cat.name}</h2>
               <Link
@@ -119,7 +120,7 @@ function Home() {
                 সব খবর
               </Link>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((a) => (
                 <ArticleCard key={a.id} article={a} />
               ))}
