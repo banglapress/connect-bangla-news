@@ -25,7 +25,7 @@ const infographicContentSchema = z.object({
 });
 
 function fitGeneratedHighlight(value: string, maxLength = 100): string {
-  const normalized = value.replace(/\\s+/gu, " ").trim();
+  const normalized = value.replace(/\s+/gu, " ").trim();
   if (normalized.length <= maxLength) return normalized;
 
   // Prefer a complete sentence, then fall back to a word-boundary truncation.
