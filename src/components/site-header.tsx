@@ -48,8 +48,8 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="border-b-2 border-foreground bg-background">
-      <div className="mx-auto max-w-6xl px-4">
+    <header className="sticky top-0 z-40 border-b-2 border-foreground/90 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
+      <div className="mx-auto max-w-7xl px-4">
         <div className="flex items-center justify-between border-b border-border py-2 text-xs text-muted-foreground">
           <span>{hydrated ? formatBanglaFullDate(new Date()) : ""}</span>
           {hydrated && userEmail ? (
@@ -64,22 +64,22 @@ export function SiteHeader() {
             <Link to="/auth" className="hover:text-primary">সম্পাদকীয় প্রবেশ</Link>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 py-5">
+        <div className="flex items-center justify-between gap-3 py-3 md:py-4">
           <button type="button" aria-label="মেনু" className="md:hidden" onClick={() => setOpen((v) => !v)}>
             {open ? <X className="size-6" /> : <Menu className="size-6" />}
           </button>
           <Link to="/" className="mx-auto text-center md:mx-0">
-            <img src="/logo.png" alt="The Connect" className="mx-auto h-14 w-auto object-contain md:h-20" />
+            <img src="/logo.png" alt="The Connect" className="mx-auto h-12 w-auto object-contain md:h-[4.5rem]" />
           </Link>
           <form onSubmit={submitSearch} className="hidden items-center gap-2 md:flex">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="খবর খুঁজুন" className="w-44 border border-border bg-card px-3 py-1.5 text-sm outline-none focus:border-primary" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="খবর খুঁজুন" aria-label="খবর খুঁজুন" className="w-44 rounded-sm border border-border bg-card px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-primary/15" />
             <button type="submit" aria-label="খুঁজুন" className="text-foreground hover:text-primary"><Search className="size-5" /></button>
           </form>
           <span className="w-6 md:hidden" />
         </div>
       </div>
-      <nav className="border-t border-border bg-secondary">
-        <div className="mx-auto hidden max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 text-sm font-medium md:flex">
+      <nav className="border-t border-border bg-secondary/90">
+        <div className="mx-auto hidden max-w-7xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-sm font-medium md:flex">
           {items.map((c) => (
             <Link key={c.slug} to="/$section" params={{ section: c.slug }} activeProps={{ className: "text-primary" }} className="hover:text-primary">{c.name}</Link>
           ))}
