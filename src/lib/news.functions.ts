@@ -147,13 +147,18 @@ export const getArticle = createServerFn({ method: "GET" })
       const supabase = publicClient();
       const article = await findArticle(supabase, key);
       if (!article) return { article: null, related: [] as ArticleCard[], category: null };
-      const [relatedRows, categories] = await Promise.all([
+      const [relatedRows, latestRows, categories] = await Promise.all([
         selectPublished(supabase, { category: article.category_slug, limit: 12 }),
+        selectPublished(supabase, { limit: 20 }),
         listCategories(),
       ]);
       const related = relatedRows.filter((row) => row.id !== article.id).slice(0, 5);
+      const relatedIds = new Set(related.map((row) => row.id));
+      const latest = latestRows
+        .filter((row) => row.id !== article.id && !relatedIds.has(row.id))
+        .slice(0, 5);
       const category = categories.find((c) => c.slug === article.category_slug) ?? null;
-      return { article, related, category };
+      return { article, related, latest, category };
     });
   });
 
