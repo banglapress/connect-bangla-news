@@ -77,7 +77,7 @@ function Home() {
         .filter((article) => article.category_slug === cat.slug && !topStoryIds.has(article.id))
         .slice(0, 6),
     }))
-    .filter((section) => section.items.length >= 2);
+    .filter((section) => section.items.length >= 1);
 
   return (
     <main className="mx-auto max-w-[1320px] px-4 py-4 md:px-6 md:py-6">
