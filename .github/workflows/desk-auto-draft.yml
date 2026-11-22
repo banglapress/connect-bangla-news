@@ -2,16 +2,6 @@ name: The Connect AI Desk Auto Draft
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "src/routes/api/desk-auto-draft.ts"
-      - "src/lib/desk/auto-draft.ts"
-      - "src/lib/desk/ingest.functions.ts"
-      - ".github/workflows/desk-auto-draft.yml"
-  schedule:
-    # Every 30 minutes. One AI worker keeps the free-tier pilot gentle on quota.
-    - cron: "7,37 * * * *"
 
 jobs:
   ingest:
