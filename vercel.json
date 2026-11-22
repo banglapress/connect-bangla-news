@@ -1,12 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "tanstack-start",
-  "crons": [
-    {
-      "path": "/api/desk-auto-draft",
-      "schedule": "35 6 * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
